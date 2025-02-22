@@ -1,0 +1,12 @@
+C:\Users\YT\source\repos\MicroServicePYBS\SharedLibrary\bin\Debug\net8.0\SharedLibrary.deps.json
+C:\Users\YT\source\repos\MicroServicePYBS\SharedLibrary\bin\Debug\net8.0\SharedLibrary.dll
+C:\Users\YT\source\repos\MicroServicePYBS\SharedLibrary\bin\Debug\net8.0\SharedLibrary.pdb
+C:\Users\YT\source\repos\MicroServicePYBS\SharedLibrary\obj\Debug\net8.0\SharedLibrary.csproj.AssemblyReference.cache
+C:\Users\YT\source\repos\MicroServicePYBS\SharedLibrary\obj\Debug\net8.0\SharedLibrary.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\YT\source\repos\MicroServicePYBS\SharedLibrary\obj\Debug\net8.0\SharedLibrary.AssemblyInfoInputs.cache
+C:\Users\YT\source\repos\MicroServicePYBS\SharedLibrary\obj\Debug\net8.0\SharedLibrary.AssemblyInfo.cs
+C:\Users\YT\source\repos\MicroServicePYBS\SharedLibrary\obj\Debug\net8.0\SharedLibrary.csproj.CoreCompileInputs.cache
+C:\Users\YT\source\repos\MicroServicePYBS\SharedLibrary\obj\Debug\net8.0\SharedLibrary.dll
+C:\Users\YT\source\repos\MicroServicePYBS\SharedLibrary\obj\Debug\net8.0\refint\SharedLibrary.dll
+C:\Users\YT\source\repos\MicroServicePYBS\SharedLibrary\obj\Debug\net8.0\SharedLibrary.pdb
+C:\Users\YT\source\repos\MicroServicePYBS\SharedLibrary\obj\Debug\net8.0\ref\SharedLibrary.dll
