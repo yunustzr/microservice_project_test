@@ -1,4 +1,4 @@
-﻿namespace AuthenticationApi.Models
+﻿namespace AuthenticationApi.Domain.Models
 {
     public class LoginRequest
     {
