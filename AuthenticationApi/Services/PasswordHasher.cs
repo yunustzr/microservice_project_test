@@ -2,16 +2,16 @@
 
 namespace AuthenticationApi.Services
 {
-    public static class PasswordHasher
+    public class PasswordHasher
     {
-        public static string Hash(string password)
+        public string HashPassword(string password)
         {
-            return BCrypt.Net.BCrypt.HashPassword(password);
+            return BCrypt.Net.BCrypt.EnhancedHashPassword(password, 13);
         }
 
-        public static bool Verify(string password, string hash)
+        public bool VerifyPassword(string password, string hash)
         {
-            return BCrypt.Net.BCrypt.Verify(password, hash);
+            return BCrypt.Net.BCrypt.EnhancedVerify(password, hash);
         }
     }
 }

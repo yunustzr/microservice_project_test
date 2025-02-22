@@ -1,9 +1,14 @@
-﻿namespace AuthenticationApi.Domain.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace AuthenticationApi.Domain.Models
 {
-    public class RegisterRequest
+    public class RegisterRequest : LoginRequest
     {
-        public string Username { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public string Role { get; set; } = "User";
+        [Required, Compare(nameof(Password))]
+        public string ConfirmPassword { get; set; } = string.Empty;
+
+        [Required]
+        public string Timezone { get; set; } = string.Empty;
+        public string Culture { get; set; } = "tr-TR";
     }
 }

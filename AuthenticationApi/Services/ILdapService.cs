@@ -2,6 +2,7 @@
 {
     public interface ILdapService
     {
-        bool Authenticate(string username, string password);
+        Task<User> AuthenticateAsync(string username, string password);
+        Task SyncLdapUsersAsync();
     }
 }

@@ -7,9 +7,11 @@ namespace AuthenticationApi.Services
     public class UserService : IUserService
     {
         private readonly IUserRepository _userRepository;
+        private readonly PasswordHasher _passwordHasher;
         public UserService(IUserRepository userRepository)
         {
             _userRepository = userRepository;
+            _passwordHasher = new PasswordHasher();
         }
 
         public async Task<User?> GetByUsernameAsync(string username)
@@ -22,17 +24,16 @@ namespace AuthenticationApi.Services
             var user = await GetByUsernameAsync(username);
             if (user == null)
                 return false;
-            return PasswordHasher.Verify(password, user.PasswordHash);
+            return _passwordHasher.VerifyPassword(password, user.PasswordHash);
         }
 
         public async Task<User> RegisterLocalUserAsync(RegisterRequest request)
         {
-            var hashedPassword = PasswordHasher.Hash(request.Password);
+            var hashedPassword = _passwordHasher.HashPassword(request.Password);
             var user = new User
             {
-                Username = request.Username,
-                PasswordHash = hashedPassword,
-                Role = request.Role
+                Email = request.Email,
+                PasswordHash = hashedPassword
             };
             return await _userRepository.AddUserAsync(user);
         }

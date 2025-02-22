@@ -8,82 +8,39 @@ using AuthenticationApi.Services;
 
 namespace AuthenticationApi.Controllers
 {
+
+    // AuthenticationApi/Controllers/AuthController.cs
     [ApiController]
-    [Route("api/auth")]
+    [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly IAuthenticationService _authenticationService;
-        private readonly IUserService _userService;
-        private readonly IConfiguration _config;
-        private readonly ILogger<AuthController> _logger;
-        public AuthController(IAuthenticationService authenticationService, IUserService userService, IConfiguration config, ILogger<AuthController> logger)
+        private readonly IAuthenticationService _authService;
+
+        public AuthController(IAuthenticationService authService)
         {
-            _authenticationService = authenticationService;
-            _userService = userService;
-            _config = config;
-            _logger = logger;
+            _authService = authService;
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login(LoginRequest request)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var authResult = await _authenticationService.AuthenticateAsync(request.Username, request.Password);
-            if (authResult.IsAuthenticated)
-            {
-                var token = GenerateJwtToken(request.Username);
-                return Ok(new { Token = token });
-            }
-            _logger.LogWarning("Authentication failed for user: {Username}", request.Username);
-            return Unauthorized(new { Message = authResult.Message });
+            var result = await _authService.LoginAsync(request);
+            return Ok(result);
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+        public async Task<IActionResult> Register(RegisterRequest request)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var existingUser = await _userService.GetByUsernameAsync(request.Username);
-            if (existingUser != null)
-                return Conflict(new { Message = "User already exists" });
-
-            var user = await _userService.RegisterLocalUserAsync(request);
-            return Ok(new { Message = "User registered successfully", User = user });
+            var result = await _authService.RegisterAsync(request);
+            return Ok(result);
         }
 
-        private string GenerateJwtToken(string username)
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshToken([FromBody] string refreshToken)
         {
-            var jwtSecretKey = _config["Jwt:SecretKey"];
-            var jwtIssuer = _config["Jwt:Issuer"];
-            var jwtAudience = _config["Jwt:Audience"];
-
-            if (string.IsNullOrWhiteSpace(jwtSecretKey) ||
-                string.IsNullOrWhiteSpace(jwtIssuer) ||
-                string.IsNullOrWhiteSpace(jwtAudience))
-            {
-                throw new InvalidOperationException("JWT configuration is missing or invalid.");
-            }
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecretKey));
-            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.Name, username)
-            };
-
-            var token = new JwtSecurityToken(
-                issuer: jwtIssuer,
-                audience: jwtAudience,
-                claims: claims,
-                expires: DateTime.UtcNow.AddHours(1),
-                signingCredentials: credentials
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            var result = await _authService.RefreshTokenAsync(refreshToken);
+            return Ok(result);
         }
     }
+
 }

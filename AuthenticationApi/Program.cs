@@ -79,6 +79,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 
 // Authentication Service
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddSingleton<PasswordHasher>();
 
 var app = builder.Build();
 
@@ -124,18 +125,6 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     dbContext.Database.Migrate();
 
-    var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
-    var admin = userRepository.GetByUsernameAsync("admin").GetAwaiter().GetResult();
-    if (admin == null)
-    {
-        var adminUser = new AuthenticationApi.Domain.Models.User
-        {
-            Username = "admin",
-            PasswordHash = PasswordHasher.Hash("adminpassword"),
-            Role = "Admin"
-        };
-        userRepository.AddUserAsync(adminUser).GetAwaiter().GetResult();
-    }
 }
 
 app.Run();
