@@ -1,0 +1,35 @@
+﻿version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_container
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: auth_db
+      MYSQL_USER: auth_user
+      MYSQL_PASSWORD: auth_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  authentication_api:
+    build: .
+    container_name: authentication_api
+    depends_on:
+      - mysql
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=mysql;Database=auth_db;User=auth_user;Password=auth_password;
+      - ASPNETCORE_ENVIRONMENT=Development
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: ["dotnet", "run"]
+
+volumes:
+  mysql_data:
