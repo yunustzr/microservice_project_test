@@ -1,11 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using System.Threading.RateLimiting;
-using Novell.Directory.Ldap;
-using AuthenticationApi.Services;
 using AuthenticationApi.Configurations;
+using AuthenticationApi.Infrastructure;
+using AuthenticationApi.Infrastructure.Repositories;
+using AuthenticationApi.Services;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,28 +15,10 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Rate Limiter Servislerini Ekleyin
-builder.Services.AddRateLimiter(options =>
-{
-    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-    {
-        // X-Forwarded-For başlığı yoksa, istemci IP'sini kullanın.
-        string key = context.Request.Headers["X-Forwarded-For"].ToString();
-        if (string.IsNullOrEmpty(key))
-        {
-            key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        }
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: key,
-            factory: partition => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(1),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
-            });
-    });
-});
+// MySQL bağlantısı için Entity Framework Core ayarları
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
 // JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -56,37 +39,73 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // CORS Configuration
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policyBuilder =>
+    options.AddDefaultPolicy(policy =>
     {
-        policyBuilder.AllowAnyHeader()
-               .AllowAnyMethod()
-               .AllowAnyOrigin();
+        policy.AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowAnyOrigin();
     });
 });
 
-// LDAP Konfigürasyonu ve Servisini Ekleyin
+// Rate Limiter Servisleri
+builder.Services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+    {
+        var key = context.Request.Headers["X-Forwarded-For"].ToString();
+        if (string.IsNullOrEmpty(key))
+        {
+            key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        }
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: key,
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            });
+    });
+});
+
+// LDAP Config ve Servisi
 builder.Services.Configure<LdapConfig>(builder.Configuration.GetSection("Ldap"));
 builder.Services.AddScoped<ILdapService, LdapService>();
 
+// Yerel kullanıcı servisleri ve repository
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
+
+// Authentication Service
+builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+
 var app = builder.Build();
 
-
-/*
-// Security Headers Middleware
+// Security Headers Middleware (CSP ayarları; Swagger için inline style izni)
 app.Use(async (context, next) =>
 {
-    context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'");
+    var path = context.Request.Path;
+    string csp;
+    if (path.StartsWithSegments("/swagger"))
+    {
+        csp = "default-src 'self'; style-src 'self' 'unsafe-inline'";
+    }
+    else
+    {
+        csp = "default-src 'self'";
+    }
+    context.Response.Headers.Append("Content-Security-Policy", csp);
     context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
     context.Response.Headers.Append("X-Frame-Options", "DENY");
     context.Response.Headers.Append("Referrer-Policy", "no-referrer");
     await next();
 });
-*/
 
-// Rate Limiting Middleware'ini ekleyin
+// Rate Limiting Middleware
 app.UseRateLimiter();
 
-// Configure the HTTP request pipeline.
+// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -94,17 +113,29 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-// CORS Middleware
 app.UseCors();
-
-// Authentication Middleware (UseAuthorization'dan önce gelmeli)
-//app.UseAuthentication();
-
-// Authorization Middleware
-//app.UseAuthorization();
-
-// Map Controllers
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
+
+// Veritabanı migrasyonlarını uygula ve seed işlemi (ilk admin kullanıcısı)
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    dbContext.Database.Migrate();
+
+    var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+    var admin = userRepository.GetByUsernameAsync("admin").GetAwaiter().GetResult();
+    if (admin == null)
+    {
+        var adminUser = new AuthenticationApi.Domain.Models.User
+        {
+            Username = "admin",
+            PasswordHash = PasswordHasher.Hash("adminpassword"),
+            Role = "Admin"
+        };
+        userRepository.AddUserAsync(adminUser).GetAwaiter().GetResult();
+    }
+}
 
 app.Run();
