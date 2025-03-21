@@ -19,6 +19,18 @@ Aşağıda projenin klasör yapısı ve bileşenlerinin açıklamaları bulunmak
 
 ## 🚀 Hızlı Başlangıç
 
+
+### Migration İşlemi
+* DBContext.cs clasındaki örneklemeye bakarak connection stringde belirtilen database'e tabloları oluşturur.
+dotnet ef migrations add InitialCreate
+dotnet ef database update
+
+* Tekrar aynı migration ile işlem yapmak için;
+dotnet ef migrations remove -f
+dotnet ef migrations add InitialCreate
+dotnet ef database update
+
+*NOT: database'de aynı tablo var diye hata alırsanız database drop edip yeniden oluşturulmalıdır.
 ### Gereksinimler
 - .NET 8 SDK
 - Docker (Opsiyonel: LDAP test ortamı için)
@@ -29,3 +41,8 @@ Aşağıda projenin klasör yapısı ve bileşenlerinin açıklamaları bulunmak
    ```bash
    git clone https://github.com/your-repo/AuthenticationApi.git
    cd AuthenticationApi
+
+
+### Projeye Referans Ekleme
+cd AuthenticationApi
+dotnet add reference ..\SharedLibrary\SharedLibrary.csproj

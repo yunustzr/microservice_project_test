@@ -1,32 +1,25 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\YT\\source\\repos\\MicroServicePYBS\\SharedLibrary\\SharedLibrary.csproj": {}
+    "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj": {}
   },
   "projects": {
-    "C:\\Users\\YT\\source\\repos\\MicroServicePYBS\\SharedLibrary\\SharedLibrary.csproj": {
+    "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\YT\\source\\repos\\MicroServicePYBS\\SharedLibrary\\SharedLibrary.csproj",
+        "projectUniqueName": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj",
         "projectName": "SharedLibrary",
-        "projectPath": "C:\\Users\\YT\\source\\repos\\MicroServicePYBS\\SharedLibrary\\SharedLibrary.csproj",
-        "packagesPath": "C:\\Users\\YT\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\YT\\source\\repos\\MicroServicePYBS\\SharedLibrary\\obj\\",
+        "projectPath": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj",
+        "packagesPath": "C:\\Users\\92710052\\.nuget\\packages\\",
+        "outputPath": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\obj\\",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "C:\\Users\\YT\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "C:\\Users\\92710052\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -50,9 +43,25 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "Confluent.Kafka": {
+              "target": "Package",
+              "version": "[2.8.0, )"
+            },
             "Microsoft.AspNetCore.Http.Abstractions": {
               "target": "Package",
               "version": "[2.2.0, )"
+            },
+            "Microsoft.Extensions.Configuration": {
+              "target": "Package",
+              "version": "[9.0.3, )"
+            },
+            "Microsoft.Extensions.Hosting": {
+              "target": "Package",
+              "version": "[9.0.3, )"
+            },
+            "Nest": {
+              "target": "Package",
+              "version": "[7.17.5, )"
             }
           },
           "imports": [
@@ -71,7 +80,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.300/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.407/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

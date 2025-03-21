@@ -1,69 +1,73 @@
-﻿using AuthenticationApi.Domain.Models;
+﻿using AuthenticationApi.Domain.Models.ENTITY;
+using AuthenticationApi.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using System.Threading.Tasks;
 
-namespace AuthenticationApi.Infrastructure.Repositories
+
+public interface IUserRepository : IRepository<User>
 {
-    public class UserRepository : IUserRepository
+    Task<User> GetByUsernameAsync(string username);
+    Task<User> GetByEmailAsync(string email);
+    Task<User> GetUserWithRefreshTokensAsync(Guid userId);
+    Task<User> GetUserWithRolesAsync(Guid userId);
+    Task AssignRoleToUserAsync(Guid userId, int roleId);
+    Task<User> GetUserByRefreshTokenAsync(string refreshToken);
+    Task DeleteAsync(Guid id);
+}
+
+
+public class UserRepository : Repository<User>, IUserRepository
+{
+    public UserRepository(AppDbContext context) : base(context) { }
+
+    public async Task<User> GetByUsernameAsync(string username)
     {
-        private readonly AppDbContext _context;
+        return await _dbSet
+            .FirstOrDefaultAsync(u => u.NormalizedUserName == username.ToUpper());
+    }
 
-        public UserRepository(AppDbContext context)
+    public async Task<User> GetByEmailAsync(string email)
+    {
+        return await _dbSet
+            .FirstOrDefaultAsync(u => u.NormalizedEmail == email.ToUpper());
+    }
+
+    public async Task<User> GetUserWithRefreshTokensAsync(Guid userId)
+    {
+        return await _dbSet
+            .Include(u => u.RefreshTokens)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+    }
+
+    public async Task<User> GetUserWithRolesAsync(Guid userId)
+    {
+        return await _dbSet
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+    }
+
+    public async Task AssignRoleToUserAsync(Guid userId, int roleId)
+    {
+        var user = await _dbSet.FindAsync(userId);
+        var userRole = new UserRoles { UserId = userId, RoleId = roleId, AssignedAt = DateTime.UtcNow };
+        _context.UserRoles.Add(userRole);
+        await _context.SaveChangesAsync();
+    }
+    public async Task<User> GetUserByRefreshTokenAsync(string refreshToken)
+    {
+        return await _dbSet
+            .Include(u => u.RefreshTokens)
+            .FirstOrDefaultAsync(u => u.RefreshTokens.Any(rt => rt.Token == refreshToken));
+    }
+
+    public async Task DeleteAsync(Guid id)
+    {
+        var user = await _dbSet.FindAsync(id);
+        if (user != null)
         {
-            _context = context;
-        }
-
-        public async Task AddAsync(User user)
-        {
-            await _context.Users.AddAsync(user);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task<User> AddUserAsync(User user)
-        {
-            await _context.Users.AddAsync(user);
-            await _context.SaveChangesAsync();
-            return user;
-        }
-
-        public async Task UpdateAsync(User user)
-        {
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task<bool> ExistsAsync(string email)
-        {
-            return await _context.Users.AnyAsync(u => u.Email == email);
-        }
-
-        public async Task<User> GetByEmailAsync(string email)
-        {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if (user == null)
-                throw new Exception("User not found"); // Kullanıcı bulunamadığında hata fırlatabiliriz
-            return user;
-        }
-
-        public async Task<User> GetUserByRefreshTokenAsync(string refreshToken)
-        {
-            var user = await _context.Users
-                .Include(u => u.RefreshTokens)
-                .FirstOrDefaultAsync(u => u.RefreshTokens.Any(rt => rt.Token == refreshToken));
-
-            if (user == null)
-                throw new Exception("User with the given refresh token not found");
-
-            return user;
-        }
-
-        public async Task<User> GetByUsernameAsync(string username)
-        {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
-            if (user == null)
-                throw new Exception("User with the given username not found");
-
-            return user;
+            await RemoveAsync(user);
         }
     }
+
+    
 }
