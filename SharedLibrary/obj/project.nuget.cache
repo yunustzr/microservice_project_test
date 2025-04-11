@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "QKjnSPFbKbI=",
+  "dgSpecHash": "NhfHZPPld4k=",
   "success": true,
-  "projectFilePath": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj",
+  "projectFilePath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\92710052\\.nuget\\packages\\confluent.kafka\\2.8.0\\confluent.kafka.2.8.0.nupkg.sha512",
     "C:\\Users\\92710052\\.nuget\\packages\\elasticsearch.net\\7.17.5\\elasticsearch.net.7.17.5.nupkg.sha512",
@@ -38,6 +38,8 @@
     "C:\\Users\\92710052\\.nuget\\packages\\microsoft.extensions.options.configurationextensions\\9.0.3\\microsoft.extensions.options.configurationextensions.9.0.3.nupkg.sha512",
     "C:\\Users\\92710052\\.nuget\\packages\\microsoft.extensions.primitives\\9.0.3\\microsoft.extensions.primitives.9.0.3.nupkg.sha512",
     "C:\\Users\\92710052\\.nuget\\packages\\nest\\7.17.5\\nest.7.17.5.nupkg.sha512",
+    "C:\\Users\\92710052\\.nuget\\packages\\polly\\8.5.2\\polly.8.5.2.nupkg.sha512",
+    "C:\\Users\\92710052\\.nuget\\packages\\polly.core\\8.5.2\\polly.core.8.5.2.nupkg.sha512",
     "C:\\Users\\92710052\\.nuget\\packages\\system.buffers\\4.5.1\\system.buffers.4.5.1.nupkg.sha512",
     "C:\\Users\\92710052\\.nuget\\packages\\system.diagnostics.diagnosticsource\\9.0.3\\system.diagnostics.diagnosticsource.9.0.3.nupkg.sha512",
     "C:\\Users\\92710052\\.nuget\\packages\\system.diagnostics.eventlog\\9.0.3\\system.diagnostics.eventlog.9.0.3.nupkg.sha512",

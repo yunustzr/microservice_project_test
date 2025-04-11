@@ -4,6 +4,7 @@ using System.Reflection.Emit;
 using AuthenticationApi.Domain.Models.ENTITY;
 using System.Text.Json;
 using SharedLibrary.Exceptions;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace AuthenticationApi.Infrastructure
 {
@@ -24,56 +25,87 @@ namespace AuthenticationApi.Infrastructure
             _kafkaProducerService = kafkaProducerService;
             _logger = loggerFactory.CreateLogger<AppDbContext>();
         }
-        public override async Task<int> SaveChangesAsync(
-         CancellationToken cancellationToken = default)
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            // .ToList() ekleyerek koleksiyonu materialize ediyoruz.
-            var entries = ChangeTracker.Entries()
-                .Where(e => e.State == EntityState.Added ||
-                            e.State == EntityState.Modified ||
-                            e.State == EntityState.Deleted)
-                .ToList();
-
+            var auditEntries = new List<AuditLog>();
             var user = _httpContextAccessor.HttpContext?.User.Identity?.Name ?? "System";
+            var utcNow = DateTime.UtcNow;
 
-            foreach (var entry in entries)
+            // 1. Audit Log'ları Oluştur
+            foreach (var entry in ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Added || 
+                           e.State == EntityState.Modified || 
+                           e.State == EntityState.Deleted))
             {
-                var entityName = entry.Entity.GetType().Name;
-                var entityId = entry.Property("Id").CurrentValue.ToString();
-                var oldValues = entry.State == EntityState.Modified
-                    ? JsonSerializer.Serialize(entry.OriginalValues.ToObject())
-                    : null;
-                var newValues = entry.State != EntityState.Deleted
-                    ? JsonSerializer.Serialize(entry.CurrentValues.ToObject())
-                    : null;
-
-                var auditLog = new AuditLog
-                {
-                    Action = entry.State.ToString(),
-                    EntityName = entityName,
-                    EntityId = entityId,
-                    ChangedBy = user,
-                    ChangedAt = DateTime.UtcNow,
-                    OldValues = oldValues,
-                    NewValues = newValues
-                };
-
-                AuditLog.Add(auditLog);
-                try
-                {
-                    await _kafkaProducerService.ProduceAsync("audit_logs",auditLog);
-                }
-                catch (System.Exception ex)
-                {
-                    _logger.LogError(ex, "Kafka'ya audit log gönderilirken hata oluştu. Entity: {EntityName}, Id: {EntityId}",
-        entityName, entityId);
-
-                     // Özel exception fırlatıyoruz, böylece bu hata üst katmanlara iletilebilir.
-                     throw new KafkaPublishException($"Audit log Kafka'ya gönderilemedi. Entity: {entityName}, Id: {entityId}", ex);
-                }
+                var auditEntry = CreateAuditEntry(entry, user, utcNow);
+                auditEntries.Add(auditEntry);
             }
 
-            return await base.SaveChangesAsync(cancellationToken);
+            // 2. Transaction'ı Başlat
+            await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                // 3. Ana İşlemleri Kaydet
+                var result = await base.SaveChangesAsync(cancellationToken);
+
+                // 4. Audit Log'ları Kaydet (Outbox Pattern)
+                await SaveAuditLogsAsync(auditEntries, cancellationToken);
+
+                // 5. Kafka'ya Asenkron Gönderim
+                _ = Task.Run(async () => 
+                {
+                    try
+                    {
+                        await _kafkaProducerService.ProduceBulkAsync("audit_logs", auditEntries);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Kafka bulk audit log gönderim hatası");
+                    }
+                }, cancellationToken);
+
+                await transaction.CommitAsync(cancellationToken);
+                return result;
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+        }
+    
+        private AuditLog CreateAuditEntry(EntityEntry entry, string user, DateTime timestamp)
+        {
+            return new AuditLog
+            {
+                ServiceName = "AuthenticationApi",
+                Action = entry.State.ToString(),
+                EntityName = entry.Entity.GetType().Name,
+                EntityId = entry.Property("Id").CurrentValue?.ToString(),
+                ChangedBy = user,
+                ChangedAt = timestamp,
+                OldValues = entry.State == EntityState.Modified 
+                    ? JsonSerializer.Serialize(entry.OriginalValues.ToObject()) 
+                    : null,
+                NewValues = entry.State != EntityState.Deleted 
+                    ? JsonSerializer.Serialize(entry.CurrentValues.ToObject()) 
+                    : null
+            };
+        }
+
+        private async Task SaveAuditLogsAsync(List<AuditLog> auditEntries, CancellationToken cancellationToken)
+        {
+            // Audit log'ları geçici olarak takip etmeyi devre dışı bırak
+            ChangeTracker.AutoDetectChangesEnabled = false;
+
+            foreach (var log in auditEntries)
+            {
+                await Set<AuditLog>().AddAsync(log, cancellationToken);
+            }
+
+            await base.SaveChangesAsync(cancellationToken);
+            ChangeTracker.AutoDetectChangesEnabled = true;
         }
 
 
@@ -100,6 +132,9 @@ namespace AuthenticationApi.Infrastructure
         public DbSet<PolicyCondition> PolicyCondition { get; set; }
         public DbSet<PolicyVersion> PolicyVersion { get; set; }
         public DbSet<RoleHierarchy> RoleHierarchie { get; set; }
+        public DbSet<Group> Group {get;set;}
+        public DbSet<GroupRole> GroupsRole {get;set;}
+        public DbSet<UserGroup> UserGroup {get;set;}
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

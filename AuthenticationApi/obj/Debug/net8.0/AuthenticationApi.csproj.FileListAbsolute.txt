@@ -359,6 +359,8 @@ C:\Workspace\DPYBS_CODE\microservice_project_test\AuthenticationApi\bin\Debug\ne
 C:\Workspace\DPYBS_CODE\microservice_project_test\AuthenticationApi\bin\Debug\net8.0\MySqlConnector.dll
 C:\Workspace\DPYBS_CODE\microservice_project_test\AuthenticationApi\bin\Debug\net8.0\Nest.dll
 C:\Workspace\DPYBS_CODE\microservice_project_test\AuthenticationApi\bin\Debug\net8.0\Novell.Directory.Ldap.NETStandard.dll
+C:\Workspace\DPYBS_CODE\microservice_project_test\AuthenticationApi\bin\Debug\net8.0\Polly.dll
+C:\Workspace\DPYBS_CODE\microservice_project_test\AuthenticationApi\bin\Debug\net8.0\Polly.Core.dll
 C:\Workspace\DPYBS_CODE\microservice_project_test\AuthenticationApi\bin\Debug\net8.0\Pomelo.EntityFrameworkCore.MySql.dll
 C:\Workspace\DPYBS_CODE\microservice_project_test\AuthenticationApi\bin\Debug\net8.0\Swashbuckle.AspNetCore.Swagger.dll
 C:\Workspace\DPYBS_CODE\microservice_project_test\AuthenticationApi\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerGen.dll

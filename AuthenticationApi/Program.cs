@@ -11,24 +11,112 @@ using Microsoft.OpenApi.Models;
 using System.Security.Claims;
 using SharedLibrary.Kafka;
 using Nest;
+using Elasticsearch.Net;
+using AuthenticationApi.Infrastructure.Repositories;
+using AuthenticationApi.Infrastructure.Interceptors;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-//builder.Services.AddSwaggerGen();
 
 
 // Kafka Config Servisini ekle
 builder.Services.Configure<KafkaConfig>(builder.Configuration.GetSection("KafkaConfig"));
 
+
+
 // Elasticsearch Client'ı tanımla
 builder.Services.AddSingleton<IElasticClient>(sp =>
 {
-    var settings = new ConnectionSettings(new Uri(builder.Configuration["Elasticsearch:Uri"] ?? "http://localhost:9200"));
+    var configuration = builder.Configuration;
+    var esUri = configuration["Elasticsearch:Uri"] ?? "http://localhost:9200";
+    var esUsername = configuration["Elasticsearch:Username"];
+    var esPassword = configuration["Elasticsearch:Password"];
+
+    var settings = new ConnectionSettings(new Uri(esUri))
+        .BasicAuthentication(esUsername, esPassword)
+        .DisableAutomaticProxyDetection()
+        .DisableDirectStreaming()
+        .DefaultIndex("audit_logs");
+
     return new ElasticClient(settings);
 });
+
+
+/*
+builder.Services.AddSingleton<IElasticClient>(sp => 
+{
+    var configuration = builder.Configuration;
+    var esUri = configuration["Elasticsearch:Uri"] ?? "http://localhost:9200";
+    var esUsername = configuration["Elasticsearch:Username"];
+    var esPassword = configuration["Elasticsearch:Password"];
+    var settings = new ConnectionSettings(new Uri(esUri))
+        .BasicAuthentication(esUsername, esPassword)
+        .DefaultIndex("audit_logs")
+        .DisableDirectStreaming() // Request/Response verilerini loglama
+        .EnableDebugMode()
+        .ServerCertificateValidationCallback(CertificateValidations.AllowAll); // SSL doğrulamasını kapat
+
+    return new ElasticClient(settings);
+});
+*/
+
+
+// ✅ Logging Servisini Ekle
+builder.Services.AddLogging();
+
+
+
+
+/*
+// Elasticsearch Client'ı ekle
+builder.Services.AddSingleton<IElasticClient>(sp =>
+{
+    var configuration = builder.Configuration;
+    var logger = sp.GetRequiredService<ILogger<Program>>(); 
+
+    var esUri = configuration["Elasticsearch:Uri"] ?? "http://localhost:9200";
+    var esUsername = configuration["Elasticsearch:Username"];
+    var esPassword = configuration["Elasticsearch:Password"];
+
+    var settings = new ConnectionSettings(new Uri("http://elasticsearch:9200"))
+        .DefaultIndex("audit_logs")
+        .DisableDirectStreaming()
+        .EnableDebugMode(apiCallDetails =>
+        {
+            logger.LogInformation("===[Elasticsearch API Call]===");
+            logger.LogInformation($"Request: {apiCallDetails.HttpMethod} {apiCallDetails.Uri}");
+
+            if (apiCallDetails.RequestBodyInBytes != null)
+            {
+                logger.LogInformation("Request Body: {RequestBody}", Encoding.UTF8.GetString(apiCallDetails.RequestBodyInBytes));
+            }
+
+            var statusCode = apiCallDetails.HttpStatusCode.HasValue
+            ? apiCallDetails.HttpStatusCode.Value.ToString()
+            : "null";
+
+            logger.LogInformation("Response: {StatusCode} {DebugInfo}", statusCode, apiCallDetails.DebugInformation);
+
+            if (apiCallDetails.ResponseBodyInBytes != null)
+            {
+                logger.LogInformation("Response Body: {ResponseBody}", Encoding.UTF8.GetString(apiCallDetails.ResponseBodyInBytes));
+            }
+        })
+        .DisablePing()
+        .ServerCertificateValidationCallback((sender, cert, chain, errors) => true)
+        .BasicAuthentication("elastic", "personel0660")
+        .EnableHttpCompression();
+
+
+    return new ElasticClient(settings);
+});
+*/
+
+
+
 
 // Kafka Log Consumer Servisini ekle
 builder.Services.AddHostedService<KafkaAuditLogConsumerService>();
@@ -36,7 +124,9 @@ builder.Services.AddHostedService<KafkaAuditLogConsumerService>();
 // MySQL bağlantısı için Entity Framework Core ayarları
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString))
+    .AddInterceptors(new SelectAuditInterceptor(builder.Services.BuildServiceProvider()))
+);
 
 
 
@@ -52,6 +142,11 @@ builder.Services.AddCors(options =>
               .AllowAnyOrigin();
     });
 });
+
+
+
+
+
 
 /*
 // Rate Limiter Servisleri
@@ -103,6 +198,21 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IResourceRepository, ResourceRepository>();
 builder.Services.AddScoped<IPermissionRepository, PermissionRepository>();
 builder.Services.AddScoped<IPolicyRepository,PolicyRepository>();
+
+
+
+
+
+
+builder.Services.AddScoped<IGroupService, GroupService>();
+builder.Services.AddScoped<IGroupRepository, GroupRepository>();
+
+builder.Services.AddScoped<IUserGroupService, UserGroupService>();
+builder.Services.AddScoped<IUserGroupRepository, UserGroupRepository>();
+
+builder.Services.AddScoped<IGroupRoleService, GroupRoleService>();
+builder.Services.AddScoped<IGroupRoleRepository, GroupRoleRepository>();
+
 
 builder.Services.AddScoped<IRoleService,RoleService>();
 builder.Services.AddScoped<IRoleRepository,RoleRepository>();
@@ -205,6 +315,9 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// ✅ Loglamanın çalıştığını test etmek için
+var loggerTest = app.Services.GetRequiredService<ILogger<Program>>();
+loggerTest.LogInformation("Elasticsearch Logger Test Mesajı");
 
 
 // Rate Limiting Middleware

@@ -1440,6 +1440,35 @@
           }
         }
       },
+      "Polly/8.5.2": {
+        "type": "package",
+        "dependencies": {
+          "Polly.Core": "8.5.2"
+        },
+        "compile": {
+          "lib/net6.0/Polly.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Polly.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "Polly.Core/8.5.2": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/Polly.Core.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Polly.Core.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
       "Pomelo.EntityFrameworkCore.MySql/8.0.2": {
         "type": "package",
         "dependencies": {
@@ -1909,7 +1938,8 @@
           "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
           "Microsoft.Extensions.Configuration": "9.0.3",
           "Microsoft.Extensions.Hosting": "9.0.3",
-          "Nest": "7.17.5"
+          "Nest": "7.17.5",
+          "Polly": "8.5.2"
         },
         "compile": {
           "bin/placeholder/SharedLibrary.dll": {}
@@ -4183,6 +4213,59 @@
         "novell.directory.ldap.netstandard.nuspec"
       ]
     },
+    "Polly/8.5.2": {
+      "sha512": "vbXsGgkG86nG+TOwY+SmtrGrRHmHH0DQaxtILx//d3Dz/ocJ8izSNYzdvU2gEtWa/LDD8zJLvD3HdjEkdlvkhg==",
+      "type": "package",
+      "path": "polly/8.5.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net462/Polly.dll",
+        "lib/net462/Polly.pdb",
+        "lib/net462/Polly.xml",
+        "lib/net472/Polly.dll",
+        "lib/net472/Polly.pdb",
+        "lib/net472/Polly.xml",
+        "lib/net6.0/Polly.dll",
+        "lib/net6.0/Polly.pdb",
+        "lib/net6.0/Polly.xml",
+        "lib/netstandard2.0/Polly.dll",
+        "lib/netstandard2.0/Polly.pdb",
+        "lib/netstandard2.0/Polly.xml",
+        "package-icon.png",
+        "package-readme.md",
+        "polly.8.5.2.nupkg.sha512",
+        "polly.nuspec"
+      ]
+    },
+    "Polly.Core/8.5.2": {
+      "sha512": "1MJKdxv4zwDmiWvYvVN24DsrWUfgQ4F83voH8bhbtLMdPuGy8CfTUzsgQhvyrl1a7hrM6f/ydwLVdVUI0xooUw==",
+      "type": "package",
+      "path": "polly.core/8.5.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net462/Polly.Core.dll",
+        "lib/net462/Polly.Core.pdb",
+        "lib/net462/Polly.Core.xml",
+        "lib/net472/Polly.Core.dll",
+        "lib/net472/Polly.Core.pdb",
+        "lib/net472/Polly.Core.xml",
+        "lib/net6.0/Polly.Core.dll",
+        "lib/net6.0/Polly.Core.pdb",
+        "lib/net6.0/Polly.Core.xml",
+        "lib/net8.0/Polly.Core.dll",
+        "lib/net8.0/Polly.Core.pdb",
+        "lib/net8.0/Polly.Core.xml",
+        "lib/netstandard2.0/Polly.Core.dll",
+        "lib/netstandard2.0/Polly.Core.pdb",
+        "lib/netstandard2.0/Polly.Core.xml",
+        "package-icon.png",
+        "package-readme.md",
+        "polly.core.8.5.2.nupkg.sha512",
+        "polly.core.nuspec"
+      ]
+    },
     "Pomelo.EntityFrameworkCore.MySql/8.0.2": {
       "sha512": "XjnlcxVBLnEMbyEc5cZzgZeDyLvAniACZQ04W1slWN0f4rmfNzl98gEMvHnFH0fMDF06z9MmgGi/Sr7hJ+BVnw==",
       "type": "package",
@@ -4913,11 +4996,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
+      "projectUniqueName": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
       "projectName": "AuthenticationApi",
-      "projectPath": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
+      "projectPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
       "packagesPath": "C:\\Users\\92710052\\.nuget\\packages\\",
-      "outputPath": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\obj\\",
+      "outputPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\92710052\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -4932,8 +5015,8 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj": {
-              "projectPath": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj"
+            "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj": {
+              "projectPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj"
             }
           }
         }

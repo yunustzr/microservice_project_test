@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj": {}
+    "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj": {}
   },
   "projects": {
-    "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj": {
+    "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
+        "projectUniqueName": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
         "projectName": "AuthenticationApi",
-        "projectPath": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
+        "projectPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
         "packagesPath": "C:\\Users\\92710052\\.nuget\\packages\\",
-        "outputPath": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\obj\\",
+        "outputPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\92710052\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -26,8 +26,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj": {
-                "projectPath": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj"
+              "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj": {
+                "projectPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj"
               }
             }
           }
@@ -113,14 +113,14 @@
         }
       }
     },
-    "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj": {
+    "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj",
+        "projectUniqueName": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj",
         "projectName": "SharedLibrary",
-        "projectPath": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj",
+        "projectPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj",
         "packagesPath": "C:\\Users\\92710052\\.nuget\\packages\\",
-        "outputPath": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\obj\\",
+        "outputPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\92710052\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -171,6 +171,10 @@
             "Nest": {
               "target": "Package",
               "version": "[7.17.5, )"
+            },
+            "Polly": {
+              "target": "Package",
+              "version": "[8.5.2, )"
             }
           },
           "imports": [

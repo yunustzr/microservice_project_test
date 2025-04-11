@@ -1031,6 +1031,25 @@
           }
         }
       },
+      "Polly/8.5.2": {
+        "dependencies": {
+          "Polly.Core": "8.5.2"
+        },
+        "runtime": {
+          "lib/net6.0/Polly.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.5.2.4319"
+          }
+        }
+      },
+      "Polly.Core/8.5.2": {
+        "runtime": {
+          "lib/net8.0/Polly.Core.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.5.2.4319"
+          }
+        }
+      },
       "Pomelo.EntityFrameworkCore.MySql/8.0.2": {
         "dependencies": {
           "Microsoft.EntityFrameworkCore.Relational": "8.0.2",
@@ -1268,7 +1287,8 @@
           "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
           "Microsoft.Extensions.Configuration": "9.0.3",
           "Microsoft.Extensions.Hosting": "9.0.3",
-          "NEST": "7.17.5"
+          "NEST": "7.17.5",
+          "Polly": "8.5.2"
         },
         "runtime": {
           "SharedLibrary.dll": {
@@ -1739,6 +1759,20 @@
       "sha512": "sha512-5vNTd3iABmOi31teMcy/B32awmcrc3zW6GUu45PcH42OeJbXjTaSKEVCRbnBMnxB5BQ27YZ/05kSHVYXf+tBsw==",
       "path": "novell.directory.ldap.netstandard/3.6.0",
       "hashPath": "novell.directory.ldap.netstandard.3.6.0.nupkg.sha512"
+    },
+    "Polly/8.5.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-vbXsGgkG86nG+TOwY+SmtrGrRHmHH0DQaxtILx//d3Dz/ocJ8izSNYzdvU2gEtWa/LDD8zJLvD3HdjEkdlvkhg==",
+      "path": "polly/8.5.2",
+      "hashPath": "polly.8.5.2.nupkg.sha512"
+    },
+    "Polly.Core/8.5.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-1MJKdxv4zwDmiWvYvVN24DsrWUfgQ4F83voH8bhbtLMdPuGy8CfTUzsgQhvyrl1a7hrM6f/ydwLVdVUI0xooUw==",
+      "path": "polly.core/8.5.2",
+      "hashPath": "polly.core.8.5.2.nupkg.sha512"
     },
     "Pomelo.EntityFrameworkCore.MySql/8.0.2": {
       "type": "package",

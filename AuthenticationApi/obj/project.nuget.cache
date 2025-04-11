@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "Vt8pl5taR1k=",
+  "dgSpecHash": "WlIJTmcjAkM=",
   "success": true,
-  "projectFilePath": "C:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
+  "projectFilePath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\92710052\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512",
     "C:\\Users\\92710052\\.nuget\\packages\\bouncycastle.cryptography\\2.5.0\\bouncycastle.cryptography.2.5.0.nupkg.sha512",
@@ -69,6 +69,8 @@
     "C:\\Users\\92710052\\.nuget\\packages\\mysqlconnector\\2.3.5\\mysqlconnector.2.3.5.nupkg.sha512",
     "C:\\Users\\92710052\\.nuget\\packages\\nest\\7.17.5\\nest.7.17.5.nupkg.sha512",
     "C:\\Users\\92710052\\.nuget\\packages\\novell.directory.ldap.netstandard\\3.6.0\\novell.directory.ldap.netstandard.3.6.0.nupkg.sha512",
+    "C:\\Users\\92710052\\.nuget\\packages\\polly\\8.5.2\\polly.8.5.2.nupkg.sha512",
+    "C:\\Users\\92710052\\.nuget\\packages\\polly.core\\8.5.2\\polly.core.8.5.2.nupkg.sha512",
     "C:\\Users\\92710052\\.nuget\\packages\\pomelo.entityframeworkcore.mysql\\8.0.2\\pomelo.entityframeworkcore.mysql.8.0.2.nupkg.sha512",
     "C:\\Users\\92710052\\.nuget\\packages\\swashbuckle.aspnetcore\\6.4.0\\swashbuckle.aspnetcore.6.4.0.nupkg.sha512",
     "C:\\Users\\92710052\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\6.4.0\\swashbuckle.aspnetcore.swagger.6.4.0.nupkg.sha512",

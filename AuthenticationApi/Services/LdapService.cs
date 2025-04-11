@@ -76,8 +76,14 @@ namespace AuthenticationApi.Services
             {
                 throw new AuthenticationException("Invalid credentials");
             }
-            user.IsLdapUser = false;
-            await _userRepository.UpdateAsync(user);
+
+            if(user.IsLdapUser)
+            {
+                user.IsLdapUser = false;
+                await _userRepository.UpdateAsync(user);
+            }
+            
+           
             return user;
         }
 
