@@ -226,6 +226,8 @@ builder.Services.AddScoped<IModuleRepository,ModuleRepository>();
 builder.Services.AddScoped<IPageService,PageService>();
 builder.Services.AddScoped<IPageRepository,PageRepository>();
 
+builder.Services.AddScoped<IRefreshTokenRepository,RefreshTokenRepository>();
+
 builder.Services.AddScoped<IConditionService,ConditionService>();
 builder.Services.AddScoped<IConditionRepository,ConditionRepository>();
 
@@ -282,7 +284,7 @@ var secretKey = jwtConfig["Secret"]!;
 var issuer = jwtConfig["Issuer"]!;
 var audience = jwtConfig["Audience"]!;
 
-// Authentication
+// JWT Authentication Güncellemesi
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -295,7 +297,43 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = issuer,
             ValidAudience = audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-            RoleClaimType = ClaimTypes.Role // Rolleri doğru claim'den oku
+            RoleClaimType = ClaimTypes.Role
+        };
+
+        // Token versiyon kontrolü için event handler
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var userRepository = context.HttpContext.RequestServices.GetRequiredService<IUserRepository>();
+                var userIdClaim = context.Principal.FindFirst(ClaimTypes.NameIdentifier);
+                
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                {
+                    context.Fail("Geçersiz token");
+                    return;
+                }
+
+                var user = await userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    context.Fail("Kullanıcı bulunamadı");
+                    return;
+                }
+
+                var tokenVersionClaim = context.Principal.FindFirst("tokenVersion");
+                if (tokenVersionClaim == null || !int.TryParse(tokenVersionClaim.Value, out var tokenVersion))
+                {
+                    context.Fail("Token versiyon bilgisi eksik");
+                    return;
+                }
+
+                if (user.TokenVersion != tokenVersion)
+                {
+                    context.Fail("Eski token versiyonu");
+                    return;
+                }
+            }
         };
     });
 

@@ -120,16 +120,5 @@ namespace AuthenticationApi.Controllers
 
         }
 
-
-        [HttpGet("modules")]
-        [Authorize]
-        public async Task<IActionResult> GetUserModules([FromHeader(Name = "X-Client-IP")] string clientIP)
-        {
-            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-            var modules = await _authService.GetUserModulesAsync(userId, clientIP);
-            return Ok(modules);
-        }
-
-
     }
 }

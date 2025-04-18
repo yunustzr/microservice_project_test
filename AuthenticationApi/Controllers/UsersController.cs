@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using AuthenticationApi.Domain.Models.ENTITY;
 using AuthenticationApi.Services;
 using Microsoft.AspNetCore.Authorization;
+using AuthenticationApi.Domain.Models.DTO;
 
 namespace AuthenticationApi.Controllers
 {
@@ -16,7 +17,7 @@ namespace AuthenticationApi.Controllers
         {
             _userService = userService;
         }
-        
+
         // GET: /api/users
         [HttpGet]
         public async Task<IActionResult> Get()
@@ -24,7 +25,7 @@ namespace AuthenticationApi.Controllers
             var users = await _userService.GetAllAsync();
             return Ok(users);
         }
-        
+
         // GET: /api/users/{id}
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(Guid id)
@@ -33,7 +34,7 @@ namespace AuthenticationApi.Controllers
             if (user == null) return NotFound();
             return Ok(user);
         }
-        
+
         // POST: /api/users
         [HttpPost]
         public async Task<IActionResult> Post([FromBody] User user)
@@ -43,7 +44,7 @@ namespace AuthenticationApi.Controllers
             var createdUser = await _userService.CreateAsync(user);
             return CreatedAtAction(nameof(Get), new { id = createdUser.Id }, createdUser);
         }
-        
+
         // PUT: /api/users/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> Put(Guid id, [FromBody] User user)
@@ -53,7 +54,7 @@ namespace AuthenticationApi.Controllers
             var updatedUser = await _userService.UpdateAsync(user);
             return Ok(updatedUser);
         }
-        
+
         // DELETE: /api/users/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
@@ -62,7 +63,7 @@ namespace AuthenticationApi.Controllers
             if (!result) return NotFound();
             return NoContent();
         }
-        
+
         // GET: /api/users/{id}/roles
         [HttpGet("{id}/roles")]
         public async Task<IActionResult> GetUserRoles(Guid id)
@@ -70,7 +71,7 @@ namespace AuthenticationApi.Controllers
             var roles = await _userService.GetUserRolesAsync(id);
             return Ok(roles);
         }
-        
+
         // GET: /api/users/{id}/permissions
         [HttpGet("{id}/permissions")]
         public async Task<IActionResult> GetUserPermissions(Guid id)
@@ -80,13 +81,48 @@ namespace AuthenticationApi.Controllers
         }
 
 
-        
+
         [HttpGet("{id}/modules")]
         [Authorize]
-        public async Task<IActionResult> GetUserModules([FromHeader(Name = "X-Client-IP")] string clientIP,Guid id)
+        public async Task<IActionResult> GetUserModules([FromHeader(Name = "X-Client-IP")] string clientIP, Guid id)
         {
             var modules = await _userService.GetUserModulesAsync(id, clientIP);
             return Ok(modules);
         }
+
+        [HttpPut("{id}/change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword(Guid id, [FromBody] ChangePasswordDto request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+                var tokens = await _userService.ChangePasswordAndGenerateTokensAsync(id, request);
+                return Ok(tokens);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+
+        }
+        [HttpPut("{id}/reset-password")]
+        [Authorize]
+        public async Task<IActionResult> ResetPassword(Guid id, [FromBody] ResetPasswordDto request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+                var tokens = await _userService.ResetPasswordAndGenerateTokensAsync(id, request);
+                return Ok(tokens);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
     }
+
 }

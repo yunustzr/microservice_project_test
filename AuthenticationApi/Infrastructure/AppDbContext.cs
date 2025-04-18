@@ -120,6 +120,7 @@ namespace AuthenticationApi.Infrastructure
         public DbSet<Role> Role { get; set; }
         public DbSet<RolePolicy> RolePolicy { get; set; }
         public DbSet<User> User { get; set; }
+        public DbSet<RefreshTokens> RefreshTokens { get; set; }
         public DbSet<UserRoles> UserRoles { get; set; }
         public DbSet<Modules> Modules { get; set; }
         public DbSet<Pages> Pages { get; set; }

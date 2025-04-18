@@ -1,5 +1,6 @@
 ﻿using AuthenticationApi.Domain.Models.ENTITY;
 using AuthenticationApi.Infrastructure;
+using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 
 
@@ -12,6 +13,7 @@ public interface IUserRepository : IRepository<User>
     Task AssignRoleToUserAsync(Guid userId, int roleId);
     Task<User> GetUserByRefreshTokenAsync(string refreshToken);
     Task DeleteAsync(Guid id);
+    Task<bool> ChangePasswordAsync(Guid userId, string newPassword);
 }
 
 
@@ -69,5 +71,16 @@ public class UserRepository : Repository<User>, IUserRepository
         }
     }
 
-    
+    public async Task<bool> ChangePasswordAsync(Guid userId, string newPassword)
+    {
+        var user = _dbSet.FindAsync(userId);
+        if(user == null)
+        {
+            return false;
+        }
+        user.Result.PasswordHash = newPassword; // Assuming PasswordHash is a string, adjust as necessary
+        _context.Entry(user.Result).State = EntityState.Modified;
+        await _context.SaveChangesAsync();
+        return true;
+    }
 }

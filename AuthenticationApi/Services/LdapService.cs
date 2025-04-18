@@ -71,19 +71,38 @@ namespace AuthenticationApi.Services
             var user = await _userRepository.GetByEmailAsync(request.Email)
                 ?? throw new AuthenticationException("Invalid credentials");
 
+            // ✅ Eğer kilitliyse, hala kilit süresi geçmediyse
+            if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
+            {
+                throw new AuthenticationException("User account is locked. Try again later.");
+            }
+
+            // ✅ Şifre kontrolü
             if (string.IsNullOrEmpty(user.PasswordHash)
                 || !_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
             {
+                user.FailedLoginAttempts++;
+
+                // ❗ 10 başarısız denemeden sonra kilitle
+                if (user.FailedLoginAttempts >= 10)
+                {
+                    user.LockoutEnd = DateTime.UtcNow.AddMinutes(15); // örn. 15 dakika kilitli kalsın
+                }
+
+                await _userRepository.UpdateAsync(user);
                 throw new AuthenticationException("Invalid credentials");
             }
 
-            if(user.IsLdapUser)
+            // 🧼 Giriş başarılıysa: sayacı sıfırla ve kilidi kaldır
+            user.FailedLoginAttempts = 0;
+            user.LockoutEnd = null;
+
+            if (user.IsLdapUser)
             {
                 user.IsLdapUser = false;
-                await _userRepository.UpdateAsync(user);
             }
-            
-           
+
+            await _userRepository.UpdateAsync(user);
             return user;
         }
 

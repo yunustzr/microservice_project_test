@@ -51,7 +51,7 @@ namespace AuthenticationApi.Domain.Models.ENTITY
         public DateTime? TwoFactorCodeExpiresAt { get; set; } // İki faktörlü doğrulama kodunun geçerlilik süresi
 
         public string? PreferredTwoFactorMethod { get; set; } // Kullanıcının tercih ettiği iki faktörlü doğrulama yöntemi (Email, SMS, AuthenticatorApp)
-
+        public int TokenVersion { get; set; } = 1; // Token versiyonu, token yenileme işlemlerinde kullanılacak
         // İlişkili Tablolar
         public List<RefreshTokens> RefreshTokens { get; set; } = new List<RefreshTokens>(); // Kullanıcıya ait refresh token listesi
         public List<UserRoles> UserRoles { get; set; } = new List<UserRoles>(); // Kullanıcının rollerinin listesi

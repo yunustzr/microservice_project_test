@@ -40,6 +40,7 @@ namespace AuthenticationApi.Services
 
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim("timezone", user.Timezone),
+                new Claim("tokenVersion", user.TokenVersion.ToString()),
                 new Claim("culture", user.Culture)
             };
 

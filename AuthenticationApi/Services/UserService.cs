@@ -5,6 +5,7 @@ using System.Security.Authentication;
 using System.Threading.Tasks;
 using AuthenticationApi.Domain.Models.DTO;
 using AuthenticationApi.Domain.Models.ENTITY;
+using AuthenticationApi.Infrastructure.Repositories;
 
 namespace AuthenticationApi.Services
 {
@@ -18,18 +19,28 @@ namespace AuthenticationApi.Services
         Task<IEnumerable<Role>> GetUserRolesAsync(Guid userId);
         Task<IEnumerable<Permission>> GetUserPermissionsAsync(Guid userId);
         Task<List<ModuleDto>> GetUserModulesAsync(Guid userId, string clientIP);
+        Task<AuthResponse> ChangePasswordAndGenerateTokensAsync(Guid userId, ChangePasswordDto model);
+        Task<AuthResponse> ResetPasswordAndGenerateTokensAsync(Guid userId, ResetPasswordDto model);
     }
 
     public class UserService : IUserService
     {
         private readonly IUserRepository _userRepository;
         private readonly IRoleRepository _roleRepository;
+        private readonly IRefreshTokenRepository _refreshTokenRepository;
         private readonly ILogger<AuthenticationService> _logger;
-        public UserService(IUserRepository userRepository,IRoleRepository roleRepository,ILogger<AuthenticationService> logger)
+        private readonly PasswordHasher _passwordHasher;
+        private readonly ITokenService _tokenService;
+
+
+        public UserService(IUserRepository userRepository, IRoleRepository roleRepository, IRefreshTokenRepository refreshTokenRepository, ILogger<AuthenticationService> logger, PasswordHasher passwordHasher, ITokenService tokenService)
         {
             _userRepository = userRepository;
             _roleRepository = roleRepository;
             _logger = logger;
+            _passwordHasher = passwordHasher;
+            _tokenService = tokenService;
+            _refreshTokenRepository = refreshTokenRepository;
         }
 
         public async Task<IEnumerable<User>> GetAllAsync()
@@ -86,7 +97,7 @@ namespace AuthenticationApi.Services
 
 
 
-         public async Task<List<ModuleDto>> GetUserModulesAsync(Guid userId, string clientIP)
+        public async Task<List<ModuleDto>> GetUserModulesAsync(Guid userId, string clientIP)
         {
             try
             {
@@ -165,6 +176,97 @@ namespace AuthenticationApi.Services
         }
 
 
+        public async Task<AuthResponse> ChangePasswordAndGenerateTokensAsync(Guid userId, ChangePasswordDto dto)
+        {
+            // 1️⃣ Kullanıcıyı al ve mevcut şifreyi doğrula
+            var user = await _userRepository.GetByIdAsync(userId)
+                       ?? throw new InvalidOperationException("Kullanıcı bulunamadı.");
 
+            if (!_passwordHasher.VerifyPassword(dto.CurrentPassword, user.PasswordHash))
+                throw new InvalidOperationException("Mevcut şifre yanlış.");
+
+            if (user.IsLdapUser)
+                throw new InvalidOperationException("LDAP kullanıcısı için şifre değiştirilemez.");
+
+            // 2️⃣ Yeni şifre hash’le ve kaydet
+            var newHash = _passwordHasher.HashPassword(dto.NewPassword);
+            var changed = await _userRepository.ChangePasswordAsync(userId, newHash);
+            if (!changed)
+                throw new InvalidOperationException("Şifre güncellenemedi.");
+
+            // 3️⃣ Eski refresh token’ları iptal et
+            await _refreshTokenRepository.InvalidateAllAsync(userId);
+
+            // 4️⃣ Yeni token çifti oluştur
+            user.TokenVersion++;
+            var accessToken = _tokenService.GenerateAccessToken(user);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            
+            await _userRepository.UpdateAsync(user);
+
+            // 5️⃣ Refresh token’ı sakla
+            await _refreshTokenRepository.CreateAsync(new RefreshTokens
+            {
+                UserId = userId,
+                Token = refreshToken.Token,
+                Created = refreshToken.Created,
+                Expires = refreshToken.Expires
+            });
+
+            // 6️⃣ Yanıtı döndür
+            return new AuthResponse
+            {
+                Token = accessToken,
+                RefreshToken = refreshToken.Token,
+                UserId = user.Id,
+                Username = user.UserName
+            };
+        }
+
+        public async Task<AuthResponse> ResetPasswordAndGenerateTokensAsync(Guid userId, ResetPasswordDto dto)
+        {
+            // 1️⃣ Kullanıcıyı al ve mevcut şifreyi doğrula
+            var user = await _userRepository.GetByIdAsync(userId)
+                       ?? throw new InvalidOperationException("Kullanıcı bulunamadı.");
+            if (user.IsLdapUser)
+                throw new InvalidOperationException("LDAP kullanıcısı için şifre değiştirilemez.");
+            
+            var newHash = _passwordHasher.HashPassword(dto.NewPassword);
+            var changed = await _userRepository.ChangePasswordAsync(userId, newHash);
+            if (!changed)
+                throw new InvalidOperationException("Şifre güncellenemedi.");
+            
+            // 3️⃣ Eski refresh token’ları iptal et
+            await _refreshTokenRepository.InvalidateAllAsync(userId);
+
+            // 4️⃣ Yeni token çifti oluştur
+            user.TokenVersion++;
+            var accessToken = _tokenService.GenerateAccessToken(user);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            
+            await _userRepository.UpdateAsync(user);
+
+            // 5️⃣ Refresh token’ı sakla
+            await _refreshTokenRepository.CreateAsync(new RefreshTokens
+            {
+                UserId = userId,
+                Token = refreshToken.Token,
+                Created = refreshToken.Created,
+                Expires = refreshToken.Expires
+            });
+
+            // 6️⃣ Yanıtı döndür
+            return new AuthResponse
+            {
+                Token = accessToken,
+                RefreshToken = refreshToken.Token,
+                UserId = user.Id,
+                Username = user.UserName
+            };
+
+
+        }
     }
 }

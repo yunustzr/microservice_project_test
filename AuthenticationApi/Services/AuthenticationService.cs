@@ -238,6 +238,7 @@ namespace AuthenticationApi.Services
             var accessToken = _tokenService.GenerateAccessToken(user);
             var refreshToken = _tokenService.GenerateRefreshToken();
 
+            
             user.RefreshTokens.Add(refreshToken);
             await _userRepository.UpdateAsync(user);
 
@@ -250,7 +251,12 @@ namespace AuthenticationApi.Services
                 {
                     Id = user.Id,
                     Email = user.Email,
-                    Username = user.UserName,
+                    NormalizedUserName = user.NormalizedUserName,
+                    NormalizedLastName = user.NormalizedLastName,                    
+                    TokenVersion = user.TokenVersion,
+                    IsLdapUser = user.IsLdapUser,
+                    FailedLoginAttempts = user.FailedLoginAttempts,
+                    LockoutEnd = user.LockoutEnd,
                     Timezone = user.Timezone,
                     Culture = user.Culture
                 }
@@ -470,11 +476,15 @@ namespace AuthenticationApi.Services
             return new UserDto
             {
                 Id = user.Id,
-                Username = user.UserName,
+                NormalizedUserName = user.NormalizedUserName,
+                NormalizedLastName = user.NormalizedLastName,
                 Email = user.Email,
+                TokenVersion = user.TokenVersion,
+                IsLdapUser = user.IsLdapUser,
+                FailedLoginAttempts = user.FailedLoginAttempts,
+                LockoutEnd = user.LockoutEnd,
                 Timezone = user.Timezone,
-                Culture = user.Culture,
-                IsLdapUser = user.IsLdapUser
+                Culture = user.Culture                
             };
         }
 
