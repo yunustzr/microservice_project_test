@@ -14,6 +14,8 @@ public interface IUserRepository : IRepository<User>
     Task<User> GetUserByRefreshTokenAsync(string refreshToken);
     Task DeleteAsync(Guid id);
     Task<bool> ChangePasswordAsync(Guid userId, string newPassword);
+    Task<bool> EmailExistsAsync(string email);
+
 }
 
 
@@ -83,4 +85,11 @@ public class UserRepository : Repository<User>, IUserRepository
         await _context.SaveChangesAsync();
         return true;
     }
+
+    public async Task<bool> EmailExistsAsync(string email)
+    {
+        return await _dbSet.AnyAsync(u => u.NormalizedEmail == email.ToUpper());
+    }
+
+
 }

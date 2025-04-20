@@ -199,6 +199,10 @@ builder.Services.AddScoped<IResourceRepository, ResourceRepository>();
 builder.Services.AddScoped<IPermissionRepository, PermissionRepository>();
 builder.Services.AddScoped<IPolicyRepository,PolicyRepository>();
 
+builder.Services.AddScoped<ILdapConfigurationRepository,LdapConfigurationRepository>();
+builder.Services.AddScoped<ILdapConfigService,LdapConfigService>();
+
+
 
 
 
@@ -350,6 +354,7 @@ builder.Services.AddControllers(options =>
 */
 
 builder.Services.AddAuthorization();
+builder.Services.AddMemoryCache();
 
 var app = builder.Build();
 

@@ -4,6 +4,7 @@ using AuthenticationApi.Configurations;
 using System.Security.Authentication;
 using AuthenticationApi.Domain.Models.ENTITY;
 using AuthenticationApi.Domain.Models.DTO;
+using AuthenticationApi.Domain.Exceptions;
 
 namespace AuthenticationApi.Services
 {
@@ -68,32 +69,47 @@ namespace AuthenticationApi.Services
 
         private async Task<User> AuthenticateLocalUser(LoginRequest request)
         {
-            var user = await _userRepository.GetByEmailAsync(request.Email)
-                ?? throw new AuthenticationException("Invalid credentials");
+            var user = await _userRepository.GetByEmailAsync(request.Email);
 
-            // ✅ Eğer kilitliyse, hala kilit süresi geçmediyse
-            if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
+            if (user == null)
             {
-                throw new AuthenticationException("User account is locked. Try again later.");
+                throw new InvalidCredentialsException(
+                    "Invalid credentials",
+                    failedLoginAttempts: 0,
+                    maxAttempts: 10
+                );
             }
 
-            // ✅ Şifre kontrolü
-            if (string.IsNullOrEmpty(user.PasswordHash)
-                || !_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
+            if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
+            {
+                throw new InvalidCredentialsException(
+                    "User account is locked. Try again later.",
+                    failedLoginAttempts: user.FailedLoginAttempts,
+                    maxAttempts: 10,
+                    lockoutEnd: user.LockoutEnd);
+            }
+
+            // Şifre yanlışsa
+            if (string.IsNullOrEmpty(user.PasswordHash) ||
+                !_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
             {
                 user.FailedLoginAttempts++;
 
-                // ❗ 10 başarısız denemeden sonra kilitle
                 if (user.FailedLoginAttempts >= 10)
                 {
-                    user.LockoutEnd = DateTime.UtcNow.AddMinutes(15); // örn. 15 dakika kilitli kalsın
+                    user.LockoutEnd = DateTime.UtcNow.AddMinutes(15);
                 }
 
                 await _userRepository.UpdateAsync(user);
-                throw new AuthenticationException("Invalid credentials");
+
+                throw new InvalidCredentialsException(
+                    "Invalid credentials",
+                    failedLoginAttempts: user.FailedLoginAttempts,
+                    maxAttempts: 10,
+                    lockoutEnd: user.LockoutEnd);
             }
 
-            // 🧼 Giriş başarılıysa: sayacı sıfırla ve kilidi kaldır
+            // Giriş başarılıysa: sayaçları sıfırla
             user.FailedLoginAttempts = 0;
             user.LockoutEnd = null;
 
@@ -105,6 +121,7 @@ namespace AuthenticationApi.Services
             await _userRepository.UpdateAsync(user);
             return user;
         }
+
 
         private bool IsLdapConnectionError(Exception ex)
         {

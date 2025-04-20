@@ -1,33 +1,40 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj": {}
+    "C:\\Users\\YT\\source\\repos\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj": {}
   },
   "projects": {
-    "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj": {
+    "C:\\Users\\YT\\source\\repos\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
+        "projectUniqueName": "C:\\Users\\YT\\source\\repos\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
         "projectName": "AuthenticationApi",
-        "projectPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
-        "packagesPath": "C:\\Users\\92710052\\.nuget\\packages\\",
-        "outputPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\AuthenticationApi\\obj\\",
+        "projectPath": "C:\\Users\\YT\\source\\repos\\microservice_project_test\\AuthenticationApi\\AuthenticationApi.csproj",
+        "packagesPath": "C:\\Users\\YT\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\YT\\source\\repos\\microservice_project_test\\AuthenticationApi\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "C:\\Users\\92710052\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\YT\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj": {
-                "projectPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj"
+              "C:\\Users\\YT\\source\\repos\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj": {
+                "projectPath": "C:\\Users\\YT\\source\\repos\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj"
               }
             }
           }
@@ -109,26 +116,33 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.407/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.300/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj": {
+    "C:\\Users\\YT\\source\\repos\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj",
+        "projectUniqueName": "C:\\Users\\YT\\source\\repos\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj",
         "projectName": "SharedLibrary",
-        "projectPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj",
-        "packagesPath": "C:\\Users\\92710052\\.nuget\\packages\\",
-        "outputPath": "c:\\Workspace\\DPYBS_CODE\\microservice_project_test\\SharedLibrary\\obj\\",
+        "projectPath": "C:\\Users\\YT\\source\\repos\\microservice_project_test\\SharedLibrary\\SharedLibrary.csproj",
+        "packagesPath": "C:\\Users\\YT\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\YT\\source\\repos\\microservice_project_test\\SharedLibrary\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "C:\\Users\\92710052\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\YT\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -193,7 +207,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.407/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.300/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

@@ -3,6 +3,7 @@ using System.Security.Authentication;
 using AuthenticationApi.Domain.Models.DTO;
 using System.Net;
 using Microsoft.AspNetCore.Http.HttpResults;
+using AuthenticationApi.Domain.Exceptions;
 
 namespace AuthenticationApi.Services
 {
@@ -18,12 +19,14 @@ namespace AuthenticationApi.Services
         Task<AuthenticationResult> RefreshTokenAsync(string token);
         Task RevokeTokenAsync(string token);
         Task RevokeAllTokensAsync(Guid userId);
+        Task<bool> IsEmailAvailableAsync(string email);
         //Task<AuthenticationResult> RefreshTokenAsync(string token);
         //Task RevokeTokenAsync(string token);
     }
 
     public class AuthenticationService : IAuthenticationService
     {
+        private const int MaxFailedAttempts = 10;
         private readonly IUserRepository _userRepository;
         private readonly IUserTempRepository _userTempRepository;
         private readonly IRoleRepository _roleRepository;
@@ -72,6 +75,25 @@ namespace AuthenticationApi.Services
             var httpContext = _httpContextAccessor.HttpContext;
             string ipAddress = httpContext?.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
             string deviceInfo = httpContext?.Request.Headers["User-Agent"].ToString() ?? "Unknown";
+            // 2) Kullanıcıyı çek
+            var user = await _userRepository.GetByEmailAsync(request.Email)
+                       ?? throw new InvalidCredentialsException(
+                            "Geçersiz kullanıcı adı veya şifre.",
+                            failedLoginAttempts: 0,
+                            maxAttempts: MaxFailedAttempts);
+
+            // 3) Aktiflik ve kilit kontrolü
+            if (!user.IsActive)
+                throw new AuthenticationException("Hesabınız aktif değil.");
+
+            if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
+                throw new InvalidCredentialsException(
+                    $"Hesabınız {user.LockoutEnd} tarihine kadar kilitli.",
+                    failedLoginAttempts: user.FailedLoginAttempts,
+                    maxAttempts: MaxFailedAttempts,
+                    lockoutEnd: user.LockoutEnd);
+
+
             try
             {
                 var existingUser = (await _userRepository.FindAsync(u => u.Email == request.Email)).ToList().FirstOrDefault();
@@ -128,7 +150,85 @@ namespace AuthenticationApi.Services
         }
 
 
-        public async Task RegisterTempAsync(RegisterRequest request)
+        public async Task<AuthenticationResult> LoginsAsync(LoginRequest request)
+        {
+            // 1) Çevre bilgileri
+            var httpContext = _httpContextAccessor.HttpContext;
+            var ip = httpContext?.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+            var device = httpContext?.Request.Headers["User-Agent"].ToString() ?? "Unknown";
+  
+
+            // 2) Kullanıcıyı çek
+            var user = await _userRepository.GetByEmailAsync(request.Email)
+                       ?? throw new InvalidCredentialsException(
+                            "Geçersiz kullanıcı adı veya şifre.",
+                            failedLoginAttempts: 0,
+                            maxAttempts: MaxFailedAttempts);
+
+            // 3) Aktiflik ve kilit kontrolü
+            if (!user.IsActive)
+                throw new AuthenticationException("Hesabınız aktif değil.");
+
+            if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
+                throw new InvalidCredentialsException(
+                    $"Hesabınız {user.LockoutEnd} tarihine kadar kilitli.",
+                    failedLoginAttempts: user.FailedLoginAttempts,
+                    maxAttempts: MaxFailedAttempts,
+                    lockoutEnd: user.LockoutEnd);
+
+            bool success = false;
+            try
+            {
+                // 4) LDAP / Local auth
+                user = await _ldapService.AuthenticateAsync(request);
+
+                // 5) Başarılı girişte sayaç sıfır ve DB güncelle
+                user.FailedLoginAttempts = 0;
+                user.LockoutEnd = null;
+                await _userRepository.UpdateAsync(user);
+
+                success = true;
+            }
+            catch (AuthenticationException)
+            {
+                // 6) Başarısız giriş: artır ve gerekirse kilitle
+                user.FailedLoginAttempts++;
+                if (user.FailedLoginAttempts >= MaxFailedAttempts)
+                    user.LockoutEnd = DateTime.UtcNow.AddMinutes(15);
+                await _userRepository.UpdateAsync(user);
+
+                throw new InvalidCredentialsException(
+                    "Geçersiz kullanıcı adı veya şifre.",
+                    failedLoginAttempts: user.FailedLoginAttempts,
+                    maxAttempts: MaxFailedAttempts,
+                    lockoutEnd: user.LockoutEnd);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Beklenmeyen hata ile login başarısız oldu");
+                throw new AuthenticationException("Sunucu hatası, lütfen daha sonra tekrar deneyin.");
+            }
+            finally
+            {
+                // Login log
+                await _loginLogService.LogAsync(new LoginLog
+                {
+                    Username = request.Email,
+                    LoginTime = DateTime.UtcNow,
+                    IPAddress = ip,
+                    DeviceInfo = device,
+                    IsSuccessful = success,
+                    FailureReason = success ? null : "Invalid credentials or locked."
+                });
+            }
+
+            // Token üret ve DTO oluştur
+            return await GenerateAuthenticationResult(user);
+        }
+    
+
+
+    public async Task RegisterTempAsync(RegisterRequest request)
         {
             try
             {
@@ -187,41 +287,57 @@ namespace AuthenticationApi.Services
                 throw;
             }
         }
+
+
+        public async Task<bool> IsEmailAvailableAsync(string email)
+        {
+            var normalizedEmail = email.ToUpperInvariant();
+            return !await _userRepository.EmailExistsAsync(normalizedEmail);
+        }
+
         public async Task<AuthenticationResult> VerifyEmailAsync(EmailVerifyRequest emailVerifyRequest)
         {
             try
             {
-                // Token'e göre, silinmemiş (active) temp kullanıcıyı getiriyoruz
-                var tempUser = (await _userTempRepository.FindAsync(u => u.VerificationCode == emailVerifyRequest.Token && u.Email == emailVerifyRequest.Email && !u.IsDeleted)).ToList().FirstOrDefault();
+                // 1. Email zaten kayıtlı mı?
+                var normalizedEmail = emailVerifyRequest.Email.ToUpperInvariant();
+                if (await _userRepository.EmailExistsAsync(emailVerifyRequest.Email))
+                {
+                    throw new AuthenticationException("Bu e-posta adresi ile zaten bir kullanıcı mevcut.");
+                }
+
+                // 2. Token'e göre geçerli temp kullanıcıyı getir
+                var tempUser = (await _userTempRepository.FindAsync(u =>
+                    u.VerificationCode == emailVerifyRequest.Token &&
+                    u.Email == emailVerifyRequest.Email &&
+                    !u.IsDeleted)).FirstOrDefault();
 
                 if (tempUser == null)
                 {
                     throw new AuthenticationException("Geçersiz token.");
                 }
 
-                // Eğer token süresi dolmuşsa, yeni token üret ve güncelle
+                // 3. Token süresi kontrolü
                 if (tempUser.ExpiresAt < DateTime.UtcNow)
                 {
                     var newVerificationCode = new Random().Next(100000, 999999).ToString();
                     tempUser.VerificationCode = newVerificationCode;
-                    tempUser.ExpiresAt = DateTime.UtcNow.AddMinutes(15); // Yeni token 15 dakika geçerli
+                    tempUser.ExpiresAt = DateTime.UtcNow.AddMinutes(15);
                     await _userTempRepository.UpdateAsync(tempUser);
-
-                    // Opsiyonel: Yeni doğrulama kodunu kullanıcının e-posta adresine gönder
                     await _emailService.SendVerificationEmailAsync(tempUser.Email, newVerificationCode);
 
                     throw new AuthenticationException("Token süresi doldu. Yeni doğrulama kodu gönderildi.");
                 }
 
-                // Token geçerliyse, tempUser kaydını soft delete yap (IsDeleted = true)
-                tempUser.IsDeleted = true;
-                await _userTempRepository.UpdateAsync(tempUser);
-
-                // TempUser verilerini kullanarak ana User kaydını oluştur
+                // 4. Email valid ve temp kayıt geçerli ise user'ı oluştur
                 var newUser = await CreateLocalUser(tempUser);
                 await AssignDefaultRole(newUser);
 
-                // Başarılı kullanıcı doğrulama sonucunu döndür
+                // 5. tempUser kaydını soft delete yap
+                tempUser.IsDeleted = true;
+                await _userTempRepository.UpdateAsync(tempUser);
+
+                // 6. Token başarılı -> user dön
                 return await GenerateAuthenticationResult(newUser);
             }
             catch (Exception ex)
@@ -232,8 +348,25 @@ namespace AuthenticationApi.Services
         }
 
 
-
         private async Task<AuthenticationResult> GenerateAuthenticationResult(User user)
+        {
+         
+            var accessToken = _tokenService.GenerateAccessToken(user);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            user.RefreshTokens.Add(refreshToken);
+            await _userRepository.UpdateAsync(user);
+
+            return new AuthenticationResult
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken.Token,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+                User = MapToUserDto(user)
+            };
+        }
+
+        private async Task<AuthenticationResult> GenerateAuthenticationResultVold(User user)
         {
             var accessToken = _tokenService.GenerateAccessToken(user);
             var refreshToken = _tokenService.GenerateRefreshToken();
@@ -417,6 +550,14 @@ namespace AuthenticationApi.Services
 
         private async Task<User?> CreateLocalUser(TempUser tempUser)
         {
+            var normalizedEmail = tempUser.Email.ToUpperInvariant();
+
+            // Aynı email ile kullanıcı varsa kaydetme
+            if (await _userRepository.EmailExistsAsync(normalizedEmail))
+            {
+                return null;
+            }
+
             var newUser = new User
             {
                 UserName = tempUser.UserName,
@@ -438,12 +579,25 @@ namespace AuthenticationApi.Services
 
         private async Task AssignDefaultRole(User user)
         {
+            // Eğer kullanıcıya zaten bir rol atanmışsa, default rol atama
+            var userWithRoles = await _userRepository.GetUserWithRolesAsync(user.Id);
+            if (userWithRoles.UserRoles != null && userWithRoles.UserRoles.Any())
+            {
+                _logger.LogInformation("Kullanıcıya zaten rol atanmış. Default rol ataması yapılmadı. UserId: {UserId}", user.Id);
+                return;
+            }
 
             var defaultRole = await _roleRepository.GetDefaultRoleAsync();
+            if (defaultRole == null)
+            {
+                _logger.LogWarning("Sistemde tanımlı bir default rol bulunamadı. UserId: {UserId}", user.Id);
+                return;
+            }
 
             await _userRepository.AssignRoleToUserAsync(user.Id, defaultRole.Id);
-
+            _logger.LogInformation("Default rol atandı. UserId: {UserId}, RoleId: {RoleId}", user.Id, defaultRole.Id);
         }
+
 
 
 
