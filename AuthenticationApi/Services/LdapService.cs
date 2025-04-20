@@ -19,17 +19,20 @@ namespace AuthenticationApi.Services
         private readonly IUserRepository _userRepository;
         private readonly PasswordHasher _passwordHasher;
         private readonly ILogger<LdapService> _logger;
+        private readonly ISystemSettingService _settings;
 
         public LdapService(
             ILdapConfigService configService,
             IUserRepository userRepository,
             PasswordHasher passwordHasher,
-            ILogger<LdapService> logger)
+            ILogger<LdapService> logger,
+            ISystemSettingService settings)
         {
             _configService = configService;
             _userRepository = userRepository;
             _passwordHasher = passwordHasher;
             _logger = logger;
+            _settings=settings;
         }
 
         public async Task<User> AuthenticateAsync(LoginRequest request)
@@ -90,6 +93,7 @@ namespace AuthenticationApi.Services
         private async Task<User> AuthenticateLocalUser(LoginRequest request)
         {
             var user = await _userRepository.GetByEmailAsync(request.Email);
+            var maxAttempts = await _settings.GetIntAsync("MaxLoginAttempts", 10);
 
             if (user == null)
             {
@@ -101,7 +105,7 @@ namespace AuthenticationApi.Services
                 throw new InvalidCredentialsException(
                     "User account is locked.",
                     user.FailedLoginAttempts,
-                    10,
+                    maxAttempts,
                     user.LockoutEnd);
             }
 
@@ -109,7 +113,7 @@ namespace AuthenticationApi.Services
             {
                 user.FailedLoginAttempts++;
 
-                if (user.FailedLoginAttempts >= 10)
+                if (user.FailedLoginAttempts >= maxAttempts)
                 {
                     user.LockoutEnd = DateTime.UtcNow.AddMinutes(15);
                 }
@@ -119,7 +123,7 @@ namespace AuthenticationApi.Services
                 throw new InvalidCredentialsException(
                     "Invalid credentials",
                     user.FailedLoginAttempts,
-                    10,
+                    maxAttempts,
                     user.LockoutEnd);
             }
 
