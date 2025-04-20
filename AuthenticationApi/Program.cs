@@ -202,6 +202,9 @@ builder.Services.AddScoped<IPolicyRepository,PolicyRepository>();
 builder.Services.AddScoped<ILdapConfigurationRepository,LdapConfigurationRepository>();
 builder.Services.AddScoped<ILdapConfigService,LdapConfigService>();
 
+builder.Services.AddScoped<ISystemSettingRepository, SystemSettingRepository>();
+builder.Services.AddScoped<ISystemSettingService, SystemSettingService>();
+
 
 
 
