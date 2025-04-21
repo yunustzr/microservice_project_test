@@ -6,12 +6,13 @@ using System.Security.Authentication;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using AuthenticationApi.Domain.Models.DTO;
+using AuthenticationApi.Domain.Exceptions;
 
 namespace AuthenticationApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController : ControllerBase
+    public class AuthController : BaseController
     {
         private readonly IAuthenticationService _authService;
         private readonly ILdapService _ldapService;
@@ -31,17 +32,39 @@ namespace AuthenticationApi.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
+            if (!ModelState.IsValid)
+                return ValidationProblemModel();
+
             try
             {
                 var result = await _authService.LoginAsync(request);
-
                 return Ok(result);
+            }
+            catch (InvalidCredentialsException ex)
+            {
+                // Burada ex.FailedLoginAttempts zaten serviste artırıldı ve persist edildi
+                var pd = new ProblemDetails
+                {
+                    Title    = "Authentication Failed",
+                    Detail   = ex.Message,
+                    Status   = StatusCodes.Status401Unauthorized,
+                    Instance = HttpContext.Request.Path
+                };
+
+                pd.Extensions["failedLoginAttempts"] = ex.FailedLoginAttempts;
+                pd.Extensions["remainingAttempts"]   = ex.RemainingAttempts;
+                // 3 veya daha fazla başarısız denemedeyse front-end Captcha göstersin
+                pd.Extensions["showCaptcha"]        = ex.FailedLoginAttempts >= 3;
+
+                return Unauthorized(pd);
             }
             catch (AuthenticationException ex)
             {
-                return Unauthorized(ex.Message);
+                // Diğer authentication hatalarında (kilitli, inaktif vs.)
+                return Problem500("Authentication Error", ex.Message);
             }
         }
+
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
@@ -70,6 +93,22 @@ namespace AuthenticationApi.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [HttpPost("check-email")]
+        public async Task<IActionResult> CheckEmail([FromBody] CheckEmailRequestDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var isAvailable = await _authService.IsEmailAvailableAsync(request.Email);
+
+            if (!isAvailable)
+            {
+                return BadRequest("Bu e-posta adresi ile zaten kayıtlı bir kullanıcı var.");
+            }
+
+            return Ok("E-posta adresi kullanılabilir.");
         }
 
 

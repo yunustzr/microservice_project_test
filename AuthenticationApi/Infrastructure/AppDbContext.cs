@@ -136,6 +136,8 @@ namespace AuthenticationApi.Infrastructure
         public DbSet<Group> Group {get;set;}
         public DbSet<GroupRole> GroupsRole {get;set;}
         public DbSet<UserGroup> UserGroup {get;set;}
+        public DbSet<LdapConfiguration> LdapConfigurations { get; set; }
+        public DbSet<SystemSetting> SystemSettings { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

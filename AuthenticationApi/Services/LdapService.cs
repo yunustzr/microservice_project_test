@@ -1,9 +1,9 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
 using Novell.Directory.Ldap;
-using AuthenticationApi.Configurations;
 using System.Security.Authentication;
 using AuthenticationApi.Domain.Models.ENTITY;
 using AuthenticationApi.Domain.Models.DTO;
+using AuthenticationApi.Domain.Exceptions;
 
 namespace AuthenticationApi.Services
 {
@@ -12,43 +12,68 @@ namespace AuthenticationApi.Services
         Task<User> AuthenticateAsync(LoginRequest request);
         Task SyncLdapUsersAsync();
     }
+
     public class LdapService : ILdapService
     {
-        private readonly LdapConfig _config;
+        private readonly ILdapConfigService _configService;
         private readonly IUserRepository _userRepository;
         private readonly PasswordHasher _passwordHasher;
+        private readonly ILogger<LdapService> _logger;
+        private readonly ISystemSettingService _settings;
 
         public LdapService(
-            IOptions<LdapConfig> config,
+            ILdapConfigService configService,
             IUserRepository userRepository,
-            PasswordHasher passwordHasher)
+            PasswordHasher passwordHasher,
+            ILogger<LdapService> logger,
+            ISystemSettingService settings)
         {
-            _config = config.Value;
+            _configService = configService;
             _userRepository = userRepository;
             _passwordHasher = passwordHasher;
+            _logger = logger;
+            _settings=settings;
         }
 
         public async Task<User> AuthenticateAsync(LoginRequest request)
         {
-            try
+            var ldapConfigs = await _configService.GetLdapConfigurationsAsync();
+
+            foreach (var config in ldapConfigs)
             {
-                // LDAP ile kimlik doğrulama denemesi
-                return await AuthenticateViaLdap(request);
+                try
+                {
+                    var user = await AuthenticateViaLdap(request, config);
+                    if (user != null)
+                    {
+                        return user;
+                    }
+                }
+                catch (LdapException ex) when (IsLdapConnectionError(ex))
+                {
+                    _logger.LogWarning($"[LDAP] Connection error on server '{config.Server}': {ex.Message}");
+                    continue; // diğer konfigürasyona geç
+                }
+                catch (AuthenticationException ex)
+                {
+                    _logger.LogWarning($"[LDAP] Authentication failed for server '{config.Server}': {ex.Message}");
+                    // kullanıcı yoksa diğerini dene ama tek bir tane LDAP üzerinden kullanıcı varsa, local'e geçme
+                    return null!;
+                }
             }
-            catch (Exception ex) when (IsLdapConnectionError(ex))
-            {
-                // LDAP bağlantı hatası durumunda yerel kullanıcıyı dene
-                return await AuthenticateLocalUser(request);
-            }
+
+            // LDAP ile giriş yapılamadıysa, local kullanıcı ile dene
+            return await AuthenticateLocalUser(request);
         }
-        private async Task<User> AuthenticateViaLdap(LoginRequest request)
+
+        private async Task<User> AuthenticateViaLdap(LoginRequest request, LdapConfiguration config)
         {
             using var connection = new LdapConnection
             {
-                SecureSocketLayer = _config.Port == 636
+                SecureSocketLayer = config.UseSSL
             };
 
-            connection.Connect(_config.Server, _config.Port);
+            connection.Connect(config.Server, config.Port);
             connection.Bind(request.Email, request.Password);
 
             var user = await _userRepository.GetByEmailAsync(request.Email);
@@ -58,49 +83,53 @@ namespace AuthenticationApi.Services
                 throw new AuthenticationException("User not found");
             }
 
-            // Şifreyi güncelle (LDAP şifresiyle sync)
             user.PasswordHash = _passwordHasher.HashPassword(request.Password);
+            user.IsLdapUser = true;
             await _userRepository.UpdateAsync(user);
 
             return user;
         }
 
-
         private async Task<User> AuthenticateLocalUser(LoginRequest request)
         {
-            var user = await _userRepository.GetByEmailAsync(request.Email)
-                ?? throw new AuthenticationException("Invalid credentials");
+            var user = await _userRepository.GetByEmailAsync(request.Email);
+            var maxAttempts = await _settings.GetIntAsync("MaxLoginAttempts", 10);
 
-            // ✅ Eğer kilitliyse, hala kilit süresi geçmediyse
-            if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
+            if (user == null)
             {
-                throw new AuthenticationException("User account is locked. Try again later.");
+                throw new InvalidCredentialsException("Invalid credentials", 0, 10);
             }
 
-            // ✅ Şifre kontrolü
-            if (string.IsNullOrEmpty(user.PasswordHash)
-                || !_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
+            if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
+            {
+                throw new InvalidCredentialsException(
+                    "User account is locked.",
+                    user.FailedLoginAttempts,
+                    maxAttempts,
+                    user.LockoutEnd);
+            }
+
+            if (string.IsNullOrEmpty(user.PasswordHash) || !_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
             {
                 user.FailedLoginAttempts++;
 
-                // ❗ 10 başarısız denemeden sonra kilitle
-                if (user.FailedLoginAttempts >= 10)
+                if (user.FailedLoginAttempts >= maxAttempts)
                 {
-                    user.LockoutEnd = DateTime.UtcNow.AddMinutes(15); // örn. 15 dakika kilitli kalsın
+                    user.LockoutEnd = DateTime.UtcNow.AddMinutes(15);
                 }
 
                 await _userRepository.UpdateAsync(user);
-                throw new AuthenticationException("Invalid credentials");
+
+                throw new InvalidCredentialsException(
+                    "Invalid credentials",
+                    user.FailedLoginAttempts,
+                    maxAttempts,
+                    user.LockoutEnd);
             }
 
-            // 🧼 Giriş başarılıysa: sayacı sıfırla ve kilidi kaldır
             user.FailedLoginAttempts = 0;
             user.LockoutEnd = null;
-
-            if (user.IsLdapUser)
-            {
-                user.IsLdapUser = false;
-            }
+            user.IsLdapUser = false;
 
             await _userRepository.UpdateAsync(user);
             return user;
@@ -108,16 +137,15 @@ namespace AuthenticationApi.Services
 
         private bool IsLdapConnectionError(Exception ex)
         {
-            // Bağlantı hatalarını tespit et
             return ex is LdapException ldapEx &&
-                (ldapEx.ResultCode == LdapException.ConnectError ||
-                 ldapEx.ResultCode == LdapException.ServerDown);
+                   (ldapEx.ResultCode == LdapException.ConnectError ||
+                    ldapEx.ResultCode == LdapException.ServerDown);
         }
 
-        public async Task SyncLdapUsersAsync()
+        public Task SyncLdapUsersAsync()
         {
-            // LDAP'tan kullanıcıları çekip veritabanına senkronize et
-            // Detaylı implementasyon LDAP yapısına göre değişir
+            // İsteğe bağlı olarak LDAP kullanıcılarını senkronize etme işlemi burada yapılabilir.
+            return Task.CompletedTask;
         }
     }
 }
