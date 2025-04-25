@@ -90,6 +90,21 @@ namespace AuthenticationApi.Controllers
             return Ok(modules);
         }
 
+        [HttpGet("public-key")]
+        public async Task<ActionResult<object>> GetPublicKeyByEmail([FromQuery] string email)
+        {
+            var key = await _userService.GetPublicKeyByEmailAsync(email);
+            if (key == null) return NotFound();
+            return Ok(new { publicKey = key });
+        }
+
+
+        [HttpPost("{id}/generate-keys")]
+        public async Task<IActionResult> GenerateKeys(Guid id)
+        {
+            var keys = await _userService.GenerateAndSaveUserKeysAsync(id);
+            return Ok(keys);
+        }
         [HttpPut("{id}/change-password")]
         [Authorize]
         public async Task<IActionResult> ChangePassword(Guid id, [FromBody] ChangePasswordDto request)

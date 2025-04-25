@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using AuthenticationApi.Domain.Models.DTO;
 using AuthenticationApi.Domain.Models.ENTITY;
@@ -21,6 +22,8 @@ namespace AuthenticationApi.Services
         Task<List<ModuleDto>> GetUserModulesAsync(Guid userId, string clientIP);
         Task<AuthResponse> ChangePasswordAndGenerateTokensAsync(Guid userId, ChangePasswordDto model);
         Task<AuthResponse> ResetPasswordAndGenerateTokensAsync(Guid userId, ResetPasswordDto model);
+        Task<KeyPairDto> GenerateAndSaveUserKeysAsync(Guid userId);
+        Task<string> GetPublicKeyByEmailAsync(string email);
     }
 
     public class UserService : IUserService
@@ -31,9 +34,10 @@ namespace AuthenticationApi.Services
         private readonly ILogger<AuthenticationService> _logger;
         private readonly PasswordHasher _passwordHasher;
         private readonly ITokenService _tokenService;
+        private readonly IRsaKeyService _rsaKeyService;
 
 
-        public UserService(IUserRepository userRepository, IRoleRepository roleRepository, IRefreshTokenRepository refreshTokenRepository, ILogger<AuthenticationService> logger, PasswordHasher passwordHasher, ITokenService tokenService)
+        public UserService(IUserRepository userRepository, IRoleRepository roleRepository, IRefreshTokenRepository refreshTokenRepository, ILogger<AuthenticationService> logger, PasswordHasher passwordHasher, ITokenService tokenService, IRsaKeyService rsaKeyService)
         {
             _userRepository = userRepository;
             _roleRepository = roleRepository;
@@ -41,6 +45,7 @@ namespace AuthenticationApi.Services
             _passwordHasher = passwordHasher;
             _tokenService = tokenService;
             _refreshTokenRepository = refreshTokenRepository;
+            _rsaKeyService = rsaKeyService;
         }
 
         public async Task<IEnumerable<User>> GetAllAsync()
@@ -178,34 +183,32 @@ namespace AuthenticationApi.Services
 
         public async Task<AuthResponse> ChangePasswordAndGenerateTokensAsync(Guid userId, ChangePasswordDto dto)
         {
-            // 1️⃣ Kullanıcıyı al ve mevcut şifreyi doğrula
             var user = await _userRepository.GetByIdAsync(userId)
                        ?? throw new InvalidOperationException("Kullanıcı bulunamadı.");
-
-            if (!_passwordHasher.VerifyPassword(dto.CurrentPassword, user.PasswordHash))
-                throw new InvalidOperationException("Mevcut şifre yanlış.");
 
             if (user.IsLdapUser)
                 throw new InvalidOperationException("LDAP kullanıcısı için şifre değiştirilemez.");
 
-            // 2️⃣ Yeni şifre hash’le ve kaydet
-            var newHash = _passwordHasher.HashPassword(dto.NewPassword);
+            // 1️⃣ DTO içindeki encryptedData’ları RSA ile decrypt et
+            var currentPassword = await _rsaKeyService.DecryptDataAsync(dto.CurrentPassword, user.EncryptedPrivateKey);
+            var newPassword = await _rsaKeyService.DecryptDataAsync(dto.NewPassword, user.EncryptedPrivateKey);
+
+            // 2️⃣ Mevcut şifre doğrulama
+            if (!_passwordHasher.VerifyPassword(currentPassword, user.PasswordHash))
+                throw new InvalidOperationException("Mevcut şifre yanlış.");
+
+            // 3️⃣ Yeni şifreyi BCrypt ile hash’leyip kaydet
+            var newHash = _passwordHasher.HashPassword(newPassword);
             var changed = await _userRepository.ChangePasswordAsync(userId, newHash);
             if (!changed)
                 throw new InvalidOperationException("Şifre güncellenemedi.");
 
-            // 3️⃣ Eski refresh token’ları iptal et
+            // 4️⃣ Eski refresh token’ları iptal et, yeni token’ları oluştur vs...
             await _refreshTokenRepository.InvalidateAllAsync(userId);
-
-            // 4️⃣ Yeni token çifti oluştur
             user.TokenVersion++;
             var accessToken = _tokenService.GenerateAccessToken(user);
             var refreshToken = _tokenService.GenerateRefreshToken();
-
-            
             await _userRepository.UpdateAsync(user);
-
-            // 5️⃣ Refresh token’ı sakla
             await _refreshTokenRepository.CreateAsync(new RefreshTokens
             {
                 UserId = userId,
@@ -214,7 +217,6 @@ namespace AuthenticationApi.Services
                 Expires = refreshToken.Expires
             });
 
-            // 6️⃣ Yanıtı döndür
             return new AuthResponse
             {
                 Token = accessToken,
@@ -223,32 +225,27 @@ namespace AuthenticationApi.Services
                 Username = user.UserName
             };
         }
+
 
         public async Task<AuthResponse> ResetPasswordAndGenerateTokensAsync(Guid userId, ResetPasswordDto dto)
         {
-            // 1️⃣ Kullanıcıyı al ve mevcut şifreyi doğrula
             var user = await _userRepository.GetByIdAsync(userId)
                        ?? throw new InvalidOperationException("Kullanıcı bulunamadı.");
             if (user.IsLdapUser)
                 throw new InvalidOperationException("LDAP kullanıcısı için şifre değiştirilemez.");
-            
-            var newHash = _passwordHasher.HashPassword(dto.NewPassword);
+
+            //var newPassword = await _rsaKeyService.DecryptPrivateKeyAsync(dto.NewPassword);
+            var newPassword = await _rsaKeyService.DecryptDataAsync(dto.NewPassword, user.EncryptedPrivateKey);
+            var newHash = _passwordHasher.HashPassword(newPassword);
             var changed = await _userRepository.ChangePasswordAsync(userId, newHash);
             if (!changed)
                 throw new InvalidOperationException("Şifre güncellenemedi.");
-            
-            // 3️⃣ Eski refresh token’ları iptal et
-            await _refreshTokenRepository.InvalidateAllAsync(userId);
 
-            // 4️⃣ Yeni token çifti oluştur
+            await _refreshTokenRepository.InvalidateAllAsync(userId);
             user.TokenVersion++;
             var accessToken = _tokenService.GenerateAccessToken(user);
             var refreshToken = _tokenService.GenerateRefreshToken();
-
-            
             await _userRepository.UpdateAsync(user);
-
-            // 5️⃣ Refresh token’ı sakla
             await _refreshTokenRepository.CreateAsync(new RefreshTokens
             {
                 UserId = userId,
@@ -257,7 +254,6 @@ namespace AuthenticationApi.Services
                 Expires = refreshToken.Expires
             });
 
-            // 6️⃣ Yanıtı döndür
             return new AuthResponse
             {
                 Token = accessToken,
@@ -265,8 +261,42 @@ namespace AuthenticationApi.Services
                 UserId = user.Id,
                 Username = user.UserName
             };
-
-
         }
+
+
+        public async Task<KeyPairDto> GenerateAndSaveUserKeysAsync(Guid userId)
+        {
+            var user = await _userRepository.GetByIdAsync(userId)
+                       ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+            var (publicKey, privateKey) = await _rsaKeyService.GenerateKeysAsync();
+            var encryptedPrivateKey = await _rsaKeyService.EncryptPrivateKeyAsync(privateKey);
+
+            user.PublicKey = publicKey;
+            user.EncryptedPrivateKey = encryptedPrivateKey;
+            await _userRepository.UpdateAsync(user);
+
+            return new KeyPairDto
+            {
+                PublicKey = publicKey,
+                PrivateKey = privateKey
+            };
+        }
+
+        public async Task<string> GetPublicKeyByEmailAsync(string email)
+        {
+            var user = await _userRepository.GetByEmailAsync(email);
+            if (user == null)
+            {
+                // Kullanıcı yoksa da 200 OK dön ve yanıltıcı bir public key ver
+                // (Login denemeleri başarısız olacak, kayda geçirmiyoruz)
+                var (publicKey, privateKey) = await _rsaKeyService.GenerateKeysAsync();
+                return publicKey;
+            }
+
+            return user.PublicKey;
+        }
+
+
     }
 }

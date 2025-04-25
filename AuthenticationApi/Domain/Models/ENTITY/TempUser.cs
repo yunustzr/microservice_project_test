@@ -18,5 +18,7 @@ public class TempUser
     // Doğrulama süresi (örneğin 30 dakika)
     public DateTime ExpiresAt { get; set; } = DateTime.UtcNow.AddMinutes(10);
     public bool IsDeleted { get; set; } = false;
+    public string? PublicKey { get; set; }
+    public string? EncryptedPrivateKey { get; set; }
 
 }

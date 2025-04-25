@@ -39,6 +39,7 @@ namespace AuthenticationApi.Services
         private readonly ILoginLogService _loginLogService;
 
         private readonly IHttpContextAccessor _httpContextAccessor; 
+        private readonly IRsaKeyService _rsaKeyService;
 
 
 
@@ -53,7 +54,8 @@ namespace AuthenticationApi.Services
             IEmailService emailService,
             ILogger<AuthenticationService> logger,
             ILoginLogService loginLogService,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            IRsaKeyService rsaKeyService)
         {
             _userRepository = userRepository;
             _userTempRepository = userTempRepository;
@@ -66,6 +68,7 @@ namespace AuthenticationApi.Services
             _logger = logger;
             _loginLogService = loginLogService;
             _httpContextAccessor = httpContextAccessor;
+            _rsaKeyService = rsaKeyService;
         }
 
 
@@ -86,13 +89,15 @@ namespace AuthenticationApi.Services
             if (!user.IsActive)
                 throw new AuthenticationException("Hesabınız aktif değil.");
 
+/*
+            // 4) Hesap kilitleme kontrolü
             if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
                 throw new InvalidCredentialsException(
                     $"Hesabınız {user.LockoutEnd} tarihine kadar kilitli.",
                     failedLoginAttempts: user.FailedLoginAttempts,
                     maxAttempts: MaxFailedAttempts,
                     lockoutEnd: user.LockoutEnd);
-
+*/
 
             try
             {
@@ -266,6 +271,8 @@ namespace AuthenticationApi.Services
 
                 // 3. Eğer hem ana hem de temp tablolarda kayıt yoksa, yeni bir temp kullanıcı oluştur
                 var verificationCode = new Random().Next(100000, 999999).ToString();
+                var (publicKey, privateKey) = await _rsaKeyService.GenerateKeysAsync();
+                var encryptedPrivateKey = await _rsaKeyService.EncryptPrivateKeyAsync(privateKey);
                 var tempNewUser = new TempUser
                 {
                     UserName = request.Username,
@@ -275,6 +282,8 @@ namespace AuthenticationApi.Services
                     VerificationCode = verificationCode,
                     AcceptPrivacyPolicy = request.AcceptPrivacyPolicy,
                     AcceptTerms = request.AcceptTerms,
+                    PublicKey = publicKey,
+                    EncryptedPrivateKey = encryptedPrivateKey,
                     // ExpiresAt alanı TempUser modelinde default olarak 15 dakika sonrasını alıyorsa, burada da ayarlanabilir.
                     ExpiresAt = DateTime.UtcNow.AddMinutes(15)
                 };
@@ -565,6 +574,8 @@ namespace AuthenticationApi.Services
                 NormalizedUserName = tempUser.UserName.ToUpperInvariant(),
                 NormalizedLastName = tempUser.LastName.ToUpperInvariant(),
                 Email = tempUser.Email,
+                EncryptedPrivateKey = tempUser.EncryptedPrivateKey,
+                PublicKey = tempUser.PublicKey,
                 NormalizedEmail = tempUser.Email.ToUpperInvariant(),
                 PasswordHash = tempUser.PasswordHash.ToString(),
                 IsLdapUser = false,

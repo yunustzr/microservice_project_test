@@ -23,6 +23,9 @@ namespace AuthenticationApi.Domain.Models.ENTITY
 
         public string? PasswordHash { get; set; } // Kullanıcının şifre hash değeri
 
+        public string? PublicKey { get; set; }
+        public string? EncryptedPrivateKey { get; set; }
+
         public bool IsActive { get; set; } = true; // Kullanıcının aktif olup olmadığı
 
         public DateTime CreatedAt { get; set; } // Kullanıcının hesap oluşturulma tarihi

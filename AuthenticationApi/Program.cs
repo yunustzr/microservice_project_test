@@ -205,7 +205,7 @@ builder.Services.AddScoped<ILdapConfigService,LdapConfigService>();
 builder.Services.AddScoped<ISystemSettingRepository, SystemSettingRepository>();
 builder.Services.AddScoped<ISystemSettingService, SystemSettingService>();
 
-
+builder.Services.AddScoped<IRsaKeyService, RsaKeyService>();
 
 
 
@@ -356,6 +356,8 @@ builder.Services.AddControllers(options =>
 });
 */
 
+
+
 builder.Services.AddAuthorization();
 builder.Services.AddMemoryCache();
 
@@ -374,10 +376,13 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+
 }
 
+
+
 app.UseHttpsRedirection();
-app.UseCors();
+//app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
