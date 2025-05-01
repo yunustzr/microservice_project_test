@@ -14,6 +14,7 @@ using Nest;
 using Elasticsearch.Net;
 using AuthenticationApi.Infrastructure.Repositories;
 using AuthenticationApi.Infrastructure.Interceptors;
+using AuthenticationApi.Infrastructure.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -188,6 +189,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserTempRepository, UserTempRepository>();
+builder.Services.AddScoped<IUserConnectionRepository, UserConnectionRepository>();
 
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IPolicyService,PolicyService>();
@@ -282,6 +284,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 
+builder.Services.AddSignalR();
 
 builder.Services.Configure<JwtConfig>(builder.Configuration.GetSection("JwtConfig"));
 
@@ -393,5 +396,8 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     dbContext.Database.Migrate();
 }
+
+// PresenceHub endpoint'i
+app.MapHub<PresenceHub>("/presence");
 
 app.Run();

@@ -36,6 +36,10 @@ namespace AuthenticationApi.Domain.Models.ENTITY
 
         public DateTime? LockoutEnd { get; set; } // Hesap kilitlenme süresinin bitiş tarihi
 
+        public bool IsOnline { get; set; }
+        public DateTime? LastConnectedAt { get; set; }
+        public DateTime? LastDisconnectedAt { get; set; }
+
         public string Timezone { get; set; } = "Europe/Istanbul"; // Kullanıcının zaman dilimi
 
         public string Culture { get; set; } = "tr-TR"; // Kullanıcının tercih ettiği kültür bilgisi

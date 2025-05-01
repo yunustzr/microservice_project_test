@@ -4,12 +4,17 @@ using AuthenticationApi.Domain.Models.DTO;
 using System.Net;
 using Microsoft.AspNetCore.Http.HttpResults;
 using AuthenticationApi.Domain.Exceptions;
+using AuthenticationApi.Infrastructure.SignalR;
+using Microsoft.AspNetCore.SignalR;
+using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace AuthenticationApi.Services
 {
     public interface IAuthenticationService
     {
         Task<AuthenticationResult> LoginAsync(LoginRequest request);
+        Task<AuthenticationResult> LogoutAsync(Guid userId);
+
         //Task<AuthenticationResult> RegisterAsync(RegisterRequest request);
         Task RegisterTempAsync(RegisterRequest request);
 
@@ -20,7 +25,9 @@ namespace AuthenticationApi.Services
         Task RevokeTokenAsync(string token);
         Task RevokeAllTokensAsync(Guid userId);
         Task<bool> IsEmailAvailableAsync(string email);
-        //Task<AuthenticationResult> RefreshTokenAsync(string token);
+        Task SetUserOnlineStatusAsync(Guid userId, bool isOnline);
+        
+            //Task<AuthenticationResult> RefreshTokenAsync(string token);
         //Task RevokeTokenAsync(string token);
     }
 
@@ -40,6 +47,7 @@ namespace AuthenticationApi.Services
 
         private readonly IHttpContextAccessor _httpContextAccessor; 
         private readonly IRsaKeyService _rsaKeyService;
+        private readonly IHubContext<PresenceHub> _hubContext;
 
 
 
@@ -55,7 +63,8 @@ namespace AuthenticationApi.Services
             ILogger<AuthenticationService> logger,
             ILoginLogService loginLogService,
             IHttpContextAccessor httpContextAccessor,
-            IRsaKeyService rsaKeyService)
+            IRsaKeyService rsaKeyService,
+            IHubContext<PresenceHub> hubContext)
         {
             _userRepository = userRepository;
             _userTempRepository = userTempRepository;
@@ -69,6 +78,7 @@ namespace AuthenticationApi.Services
             _loginLogService = loginLogService;
             _httpContextAccessor = httpContextAccessor;
             _rsaKeyService = rsaKeyService;
+            _hubContext = hubContext;
         }
 
 
@@ -121,6 +131,8 @@ namespace AuthenticationApi.Services
                     throw new AuthenticationException($"Account locked until {authenticatedUser.LockoutEnd}");
                 }
 
+                
+                await _hubContext.Clients.All.SendAsync("UserOnline", user.Id);
 
                 // Başarılı giriş log kaydı oluşturma
                 var successLog = new LoginLog
@@ -155,85 +167,36 @@ namespace AuthenticationApi.Services
         }
 
 
-        public async Task<AuthenticationResult> LoginsAsync(LoginRequest request)
+        public async Task<AuthenticationResult> LogoutAsync(Guid userId)
         {
-            // 1) Çevre bilgileri
-            var httpContext = _httpContextAccessor.HttpContext;
-            var ip = httpContext?.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-            var device = httpContext?.Request.Headers["User-Agent"].ToString() ?? "Unknown";
-  
+            // 1. Header’dan refresh token’ı yakala
+            var http = _httpContextAccessor.HttpContext;
+            var authHeader = http.Request.Headers["Authorization"].ToString();
+            var refreshToken = authHeader.StartsWith("Bearer ")
+                ? authHeader.Substring("Bearer ".Length)
+                : authHeader;
 
-            // 2) Kullanıcıyı çek
-            var user = await _userRepository.GetByEmailAsync(request.Email)
-                       ?? throw new InvalidCredentialsException(
-                            "Geçersiz kullanıcı adı veya şifre.",
-                            failedLoginAttempts: 0,
-                            maxAttempts: MaxFailedAttempts);
+            // 2. Refresh token’ı revoke et (geçersiz kıl)
+            await RevokeTokenAsync(refreshToken);
 
-            // 3) Aktiflik ve kilit kontrolü
-            if (!user.IsActive)
-                throw new AuthenticationException("Hesabınız aktif değil.");
+            // 3. Kullanıcıyı offline olarak işaretle ve zaman damgasını ata
+            var user = await _userRepository.GetByIdAsync(userId)
+                       ?? throw new KeyNotFoundException("User not found");
+            user.IsOnline = false;
+            user.LastDisconnectedAt = DateTime.UtcNow;
+            await _userRepository.UpdateAsync(user);
 
-            if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
-                throw new InvalidCredentialsException(
-                    $"Hesabınız {user.LockoutEnd} tarihine kadar kilitli.",
-                    failedLoginAttempts: user.FailedLoginAttempts,
-                    maxAttempts: MaxFailedAttempts,
-                    lockoutEnd: user.LockoutEnd);
+            // 4. SignalR üzerinden tüm client’lara bildir
+            await _hubContext.Clients.All.SendAsync("UserOffline", userId);
 
-            bool success = false;
-            try
-            {
-                // 4) LDAP / Local auth
-                user = await _ldapService.AuthenticateAsync(request);
-
-                // 5) Başarılı girişte sayaç sıfır ve DB güncelle
-                user.FailedLoginAttempts = 0;
-                user.LockoutEnd = null;
-                await _userRepository.UpdateAsync(user);
-
-                success = true;
-            }
-            catch (AuthenticationException)
-            {
-                // 6) Başarısız giriş: artır ve gerekirse kilitle
-                user.FailedLoginAttempts++;
-                if (user.FailedLoginAttempts >= MaxFailedAttempts)
-                    user.LockoutEnd = DateTime.UtcNow.AddMinutes(15);
-                await _userRepository.UpdateAsync(user);
-
-                throw new InvalidCredentialsException(
-                    "Geçersiz kullanıcı adı veya şifre.",
-                    failedLoginAttempts: user.FailedLoginAttempts,
-                    maxAttempts: MaxFailedAttempts,
-                    lockoutEnd: user.LockoutEnd);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Beklenmeyen hata ile login başarısız oldu");
-                throw new AuthenticationException("Sunucu hatası, lütfen daha sonra tekrar deneyin.");
-            }
-            finally
-            {
-                // Login log
-                await _loginLogService.LogAsync(new LoginLog
-                {
-                    Username = request.Email,
-                    LoginTime = DateTime.UtcNow,
-                    IPAddress = ip,
-                    DeviceInfo = device,
-                    IsSuccessful = success,
-                    FailureReason = success ? null : "Invalid credentials or locked."
-                });
-            }
-
-            // Token üret ve DTO oluştur
-            return await GenerateAuthenticationResult(user);
+            // 5. (İsteğe bağlı) logout sonrası client’a dönecek bir sonuç oluşturabilirsiniz.
+            //    Controller’da genelde ignore edildiği için null dönebiliriz:
+            return null!;
         }
-    
 
 
-    public async Task RegisterTempAsync(RegisterRequest request)
+
+        public async Task RegisterTempAsync(RegisterRequest request)
         {
             try
             {
@@ -297,6 +260,19 @@ namespace AuthenticationApi.Services
             }
         }
 
+
+
+        public async Task SetUserOnlineStatusAsync(Guid userId, bool isOnline)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user != null)
+            {
+                user.IsOnline = isOnline;
+                user.LastConnectedAt = isOnline ? DateTime.UtcNow : user.LastConnectedAt;
+                user.LastDisconnectedAt = !isOnline ? DateTime.UtcNow : user.LastDisconnectedAt;
+                await _userRepository.UpdateAsync(user);
+            }
+        }
 
         public async Task<bool> IsEmailAvailableAsync(string email)
         {
