@@ -38,6 +38,10 @@ namespace AuthenticationApi.Controllers
             try
             {
                 var result = await _authService.LoginAsync(request);
+                //Kullanıcı başarılı login olduğunda kullanıcıyı online yapıyoruz.
+                await _authService.SetUserOnlineStatusAsync(result.User.Id, true);
+
+               
                 return Ok(result);
             }
             catch (InvalidCredentialsException ex)
@@ -65,6 +69,20 @@ namespace AuthenticationApi.Controllers
             }
         }
 
+        [Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            // Kullanıcının refresh token'ını al
+            var refreshToken = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+
+            await _authService.LogoutAsync(userId);
+
+            return Ok(new { Message = "Logout successful." });
+
+        }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
@@ -144,20 +162,7 @@ namespace AuthenticationApi.Controllers
         }
 
 
-        [Authorize]
-        [HttpPost("logout")]
-        public async Task<IActionResult> Logout()
-        {
 
-            // Kullanıcının refresh token'ını al
-            var refreshToken = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-
-            // Refresh token'ı geçersiz kıl ve logout zamanını kaydet
-            await _authService.RevokeTokenAsync(refreshToken);
-
-            return Ok(new { Message = "Logout successful." });
-
-        }
 
     }
 }
